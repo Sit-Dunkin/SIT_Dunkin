@@ -1,4 +1,4 @@
-import './config/dnsPatch.js'; // <--- 1. ¡ESTO DEBE IR PRIMERO!
+// import './config/dnsPatch.js'; // <--- Desactivado para usar configuración nativa de Nodemailer
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
