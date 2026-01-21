@@ -4,21 +4,20 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ==========================================
-// 1. CONFIGURACIÓN "ANTI-BLOQUEO" PARA RENDER
+// CONFIGURACIÓN "TODO TERRENO" PARA RENDER
 // ==========================================
-
 const renderConfig = {
-    host: "smtp.googlemail.com", // TRUCO: Usamos este alias en vez de smtp.gmail.com
-    port: 587,                   // Puerto estándar TLS (Mejor para la nube que el 465)
-    secure: false,               // false para puerto 587
+    host: "smtp.gmail.com",  // Usamos el host estándar
+    port: 587,               // Puerto TLS (Mejor compatibilidad en nube)
+    secure: false,           // false para puerto 587 (Usa STARTTLS)
+    family: 4,               // <--- CRÍTICO: Fuerza IPv4 para evitar Timeouts
     auth: {
-        user: process.env.EMAIL_ACTAS_USER, // Se sobreescribe abajo según el caso, pero definimos base
+        user: process.env.EMAIL_ACTAS_USER,
         pass: process.env.EMAIL_ACTAS_PASS
     },
     tls: {
-        rejectUnauthorized: false // <--- LA CLAVE: Evita que el firewall corte la conexión por certificados
+        rejectUnauthorized: false // Evita bloqueos por certificados de seguridad
     },
-    // Tiempos de espera cortos para que no se quede colgado 2 minutos
     connectionTimeout: 10000, 
     greetingTimeout: 5000,
     socketTimeout: 10000
@@ -43,7 +42,7 @@ const transporterSeguridad = nodemailer.createTransport({
 });
 
 // ==========================================
-// 2. FUNCIONES DE ENVÍO (TU LÓGICA DE SIEMPRE)
+// FUNCIONES DE ENVÍO
 // ==========================================
 
 export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
@@ -52,7 +51,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         let textoFinal = "Adjunto encontrarás el acta generada por el sistema SIT.";
         let htmlFinal = "<p>Adjunto encontrarás el documento en PDF.</p>";
 
-        // LOGICA DE PARAMETROS
+        // LOGICA DE PARAMETROS (Tu lógica original intacta)
         if (param6 && typeof param6 === 'string' && param6.endsWith('.pdf')) {
             nombreArchivoFinal = param6;
             textoFinal = param4 || textoFinal;
@@ -81,9 +80,6 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
                             <p style="margin: 5px 0;"><strong>🔢 Serial:</strong> ${serial}</p>
                         </div>
                         <p>El documento oficial se encuentra adjunto.</p>
-                    </div>
-                    <div style="background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 12px; color: #777;">
-                        Tecnología y Sistemas Dunkin'
                     </div>
                 </div>
             `;
@@ -116,7 +112,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
 
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
-        console.log(`🔒 Intentando enviar seguridad a: ${destinatario} usando Puerto 587...`);
+        console.log(`🔒 Intentando enviar seguridad a: ${destinatario} (Port 587 + IPv4)...`);
 
         const info = await transporterSeguridad.sendMail({
             from: `"Seguridad SIT Dunkin" <${process.env.EMAIL_SEGURIDAD_USER}>`,
