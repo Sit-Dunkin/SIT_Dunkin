@@ -1,4 +1,3 @@
-import './config/dnsPatch.js'; // <--- ACTIVADO: Parche crítico para Render/Gmail
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
