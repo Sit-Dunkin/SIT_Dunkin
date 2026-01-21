@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
     // --- LOGIN ---
     const handleLogin = async (email, password) => {
         try {
-            const res = await fetch('http://localhost:4000/api/auth/login', {
+            const res = await fetch('https://sit-dunkin-backend.onrender.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
         try {
             // Intentamos notificar al backend para que guarde el registro en auditoría
             if (token) {
-                await fetch('http://localhost:4000/api/auth/logout', {
+                await fetch('https://sit-dunkin-backend.onrender.com/api/auth/logout', {
                     method: 'POST',
                     headers: { 
                         'Authorization': `Bearer ${token}` 

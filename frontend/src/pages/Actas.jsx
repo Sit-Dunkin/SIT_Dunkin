@@ -17,7 +17,7 @@ const Actas = () => {
             const token = localStorage.getItem('token');
             const params = new URLSearchParams(filtros).toString();
 
-            const res = await fetch(`http://localhost:4000/api/equipos/historial-actas?${params}`, {
+            const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/historial-actas?${params}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -72,7 +72,7 @@ const Actas = () => {
             });
 
             const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:4000/api/equipos/historial-actas/${id}/pdf`, {
+            const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/historial-actas/${id}/pdf`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` }
             });

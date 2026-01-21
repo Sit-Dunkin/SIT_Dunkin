@@ -38,7 +38,7 @@ const HistorialEquipos = () => {
           params.append('page', paginaActual);
           params.append('limit', LIMIT);
 
-          const res = await fetch(`http://localhost:4000/api/equipos/logistico?${params.toString()}`, {
+          const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/logistico?${params.toString()}`, {
               headers: { 
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -91,7 +91,7 @@ const HistorialEquipos = () => {
   const registrarLogDescarga = async () => {
     try {
         const token = localStorage.getItem('token');
-        await fetch('http://localhost:4000/api/auditoria', { 
+        await fetch('https://sit-dunkin-backend.onrender.com/api/auditoria', { 
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ accion: 'Descarga Reporte Excel', detalle: 'Descarga desde Trazabilidad.', modulo: 'Trazabilidad' })

@@ -94,14 +94,14 @@ const StockSistemas = () => {
       setLoading(true);
       const token = localStorage.getItem('token'); 
       
-      const res = await fetch('http://localhost:4000/api/equipos/stock', {
+      const res = await fetch('https://sit-dunkin-backend.onrender.com/api/equipos/stock', {
           headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       setEquipos(Array.isArray(data) ? data : []);
 
       try {
-          const resCont = await fetch('http://localhost:4000/api/contactos', {
+          const resCont = await fetch('https://sit-dunkin-backend.onrender.com/api/contactos', {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           if(resCont.ok) {
@@ -144,7 +144,7 @@ const StockSistemas = () => {
       try {
           Swal.fire({ title: 'Importando...', text: 'Procesando archivo...', didOpen: () => Swal.showLoading() });
           
-          const res = await fetch('http://localhost:4000/api/equipos/stock/importar', {
+          const res = await fetch('https://sit-dunkin-backend.onrender.com/api/equipos/stock/importar', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: formData 
@@ -216,22 +216,22 @@ const StockSistemas = () => {
 
   const submitTraslado = () => { 
       if (!trasladoData.destinoNombre) return Swal.fire('Falta Destino', '', 'warning'); 
-      handleActionSubmit('http://localhost:4000/api/equipos/trasladar', trasladoData, `Acta_Salida_${Date.now()}.pdf`, setIsTrasladoOpen, () => setTrasladoData(initialTrasladoState)); 
+      handleActionSubmit('https://sit-dunkin-backend.onrender.com/api/equipos/trasladar', trasladoData, `Acta_Salida_${Date.now()}.pdf`, setIsTrasladoOpen, () => setTrasladoData(initialTrasladoState)); 
   };
   
   const submitReparacion = () => { 
       if (!reparacionData.empresa) return Swal.fire('Falta Empresa', '', 'warning'); 
-      handleActionSubmit('http://localhost:4000/api/equipos/reparacion', reparacionData, `Orden_Rep_${Date.now()}.pdf`, setIsReparacionOpen, () => setReparacionData(initialReparacionState)); 
+      handleActionSubmit('https://sit-dunkin-backend.onrender.com/api/equipos/reparacion', reparacionData, `Orden_Rep_${Date.now()}.pdf`, setIsReparacionOpen, () => setReparacionData(initialReparacionState)); 
   };
   
   const submitBaja = () => { 
       if (!bajaData.autoriza) return Swal.fire('Falta Autorización', '', 'warning'); 
-      handleActionSubmit('http://localhost:4000/api/equipos/baja', bajaData, `Acta_Baja_${Date.now()}.pdf`, setIsBajaOpen, () => setBajaData(initialBajaState)); 
+      handleActionSubmit('https://sit-dunkin-backend.onrender.com/api/equipos/baja', bajaData, `Acta_Baja_${Date.now()}.pdf`, setIsBajaOpen, () => setBajaData(initialBajaState)); 
   };
   
   const submitResiduos = () => { 
       if (!residuosData.empresa_reciclaje) return Swal.fire('Falta Empresa', '', 'warning'); 
-      handleActionSubmit('http://localhost:4000/api/equipos/residuos', residuosData, `Manifiesto_RAEE_${Date.now()}.pdf`, setIsResiduosOpen, () => setResiduosData(initialResiduosState)); 
+      handleActionSubmit('https://sit-dunkin-backend.onrender.com/api/equipos/residuos', residuosData, `Manifiesto_RAEE_${Date.now()}.pdf`, setIsResiduosOpen, () => setResiduosData(initialResiduosState)); 
   };
 
   // --- TÉCNICOS: FINALIZAR REPARACIÓN ---
@@ -252,7 +252,7 @@ const StockSistemas = () => {
       setProcesando(true); 
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:4000/api/equipos/stock/${id}/finalizar-reparacion`, {
+        const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/stock/${id}/finalizar-reparacion`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ observaciones_reparacion: observaciones })
@@ -334,7 +334,7 @@ const StockSistemas = () => {
       e.preventDefault();
       if (!editingId && (!newEquipo.origen_acta || !newEquipo.recibe_acta)) return Swal.fire('Falta Origen/Receptor', 'Requeridos para el acta.', 'warning');
 
-      const url = editingId ? `http://localhost:4000/api/equipos/stock/${editingId}` : 'http://localhost:4000/api/equipos/stock';
+      const url = editingId ? `https://sit-dunkin-backend.onrender.com/api/equipos/stock/${editingId}` : 'https://sit-dunkin-backend.onrender.com/api/equipos/stock';
       const method = editingId ? 'PUT' : 'POST';
       const token = localStorage.getItem('token'); 
 
@@ -375,7 +375,7 @@ const StockSistemas = () => {
       .then(async (r) => { 
           if (r.isConfirmed) { 
               try {
-                  const res = await fetch(`http://localhost:4000/api/equipos/stock/${id}`, { 
+                  const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/stock/${id}`, { 
                       method: 'DELETE',
                       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                   }); 

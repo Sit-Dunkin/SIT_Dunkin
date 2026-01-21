@@ -24,7 +24,7 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await fetch('http://localhost:4000/api/dashboard');
+        const res = await fetch('https://sit-dunkin-backend.onrender.com/api/dashboard');
         const json = await res.json();
         setData(json);
       } catch (error) {

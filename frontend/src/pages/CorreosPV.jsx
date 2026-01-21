@@ -38,7 +38,7 @@ const CorreosPV = () => {
   const fetchContactos = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:4000/api/contactos');
+      const res = await fetch('https://sit-dunkin-backend.onrender.com/api/contactos');
       const data = await res.json();
       setContactos(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -92,8 +92,8 @@ const CorreosPV = () => {
       }
 
       const url = isEditing 
-        ? `http://localhost:4000/api/contactos/${formData.id}` 
-        : 'http://localhost:4000/api/contactos';
+        ? `https://sit-dunkin-backend.onrender.com/api/contactos/${formData.id}` 
+        : 'https://sit-dunkin-backend.onrender.com/api/contactos';
       
       try {
           const res = await fetch(url, {
@@ -126,7 +126,7 @@ const CorreosPV = () => {
         if (result.isConfirmed) {
             const token = localStorage.getItem('token');
             try {
-                await fetch(`http://localhost:4000/api/contactos/${id}`, { 
+                await fetch(`https://sit-dunkin-backend.onrender.com/api/contactos/${id}`, { 
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });

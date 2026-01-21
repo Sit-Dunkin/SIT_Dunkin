@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_URL = 'https://sit-dunkin-backend.onrender.com';
 
 const Header = () => {
   const { user } = useAuth();

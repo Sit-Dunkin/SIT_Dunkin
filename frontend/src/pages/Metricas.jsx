@@ -18,7 +18,7 @@ const Metricas = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await fetch('http://localhost:4000/api/metricas');
+                const res = await fetch('https://sit-dunkin-backend.onrender.com/api/metricas');
                 const json = await res.json();
                 console.log("Datos Recibidos:", json); 
                 setData(json);

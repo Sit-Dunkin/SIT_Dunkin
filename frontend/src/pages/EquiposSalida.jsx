@@ -49,7 +49,7 @@ const EquiposSalida = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const resEquipos = await fetch('http://localhost:4000/api/equipos/salidas', {
+      const resEquipos = await fetch('https://sit-dunkin-backend.onrender.com/api/equipos/salidas', {
           headers: { 'Authorization': `Bearer ${token}` }
       }); 
       
@@ -57,7 +57,7 @@ const EquiposSalida = () => {
       const dataEquipos = await resEquipos.json();
       setEquipos(Array.isArray(dataEquipos) ? dataEquipos : []);
 
-      const resContactos = await fetch('http://localhost:4000/api/contactos', {
+      const resContactos = await fetch('https://sit-dunkin-backend.onrender.com/api/contactos', {
           headers: { 'Authorization': `Bearer ${token}` }
       });
       if (resContactos.ok) {
@@ -102,7 +102,7 @@ const EquiposSalida = () => {
       try {
           Swal.fire({ title: 'Importando...', text: 'Procesando archivo...', didOpen: () => Swal.showLoading() });
           
-          const res = await fetch('http://localhost:4000/api/equipos/salida/importar', {
+          const res = await fetch('https://sit-dunkin-backend.onrender.com/api/equipos/salida/importar', {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: formData 
@@ -175,7 +175,7 @@ const EquiposSalida = () => {
       setProcesando(true);
 
       try {
-          const response = await fetch('http://localhost:4000/api/equipos/retorno', {
+          const response = await fetch('https://sit-dunkin-backend.onrender.com/api/equipos/retorno', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: JSON.stringify({ equiposIds: selectedIds, ...retornoData })
@@ -227,7 +227,7 @@ const EquiposSalida = () => {
   const handleEditSubmit = async (e) => {
       e.preventDefault();
       try {
-          const response = await fetch(`http://localhost:4000/api/equipos/salida/${editFormData.id}`, {
+          const response = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/salida/${editFormData.id}`, {
               method: 'PUT',
               headers: { 
                   'Content-Type': 'application/json',
@@ -248,7 +248,7 @@ const EquiposSalida = () => {
       Swal.fire({ title: '¿Eliminar registro?', text: "Esto borrará el equipo de la lista de salidas (NO vuelve a stock).", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sí, eliminar' }).then(async (result) => {
           if (result.isConfirmed) {
               try { 
-                  const response = await fetch(`http://localhost:4000/api/equipos/salida/${id}`, { 
+                  const response = await fetch(`https://sit-dunkin-backend.onrender.com/api/equipos/salida/${id}`, { 
                       method: 'DELETE',
                       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                   }); 

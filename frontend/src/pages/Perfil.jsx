@@ -4,7 +4,7 @@ import { User, Camera, Eye, EyeOff, X, CheckCircle, AlertCircle, Lock, Circle } 
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 
-const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_URL = 'https://sit-dunkin-backend.onrender.com';
 
 const Perfil = () => {
   const { updateUserProfile } = useAuth();

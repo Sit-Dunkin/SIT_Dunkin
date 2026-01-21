@@ -53,7 +53,7 @@ const Usuarios = () => {
             
             console.log("🔄 Solicitando usuarios al backend..."); // LOG PARA DEPURAR
 
-            const res = await fetch('http://localhost:4000/api/usuarios', {
+            const res = await fetch('https://sit-dunkin-backend.onrender.com/api/usuarios', {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -110,8 +110,8 @@ const Usuarios = () => {
         if (shouldDisableSave()) return Swal.fire('Contraseña Inválida', 'Requisitos no cumplidos', 'warning');
 
         const url = isEditing 
-            ? `http://localhost:4000/api/usuarios/${formData.id}` 
-            : 'http://localhost:4000/api/usuarios';
+            ? `https://sit-dunkin-backend.onrender.com/api/usuarios/${formData.id}` 
+            : 'https://sit-dunkin-backend.onrender.com/api/usuarios';
         const method = isEditing ? 'PUT' : 'POST';
 
         try {
@@ -153,7 +153,7 @@ const Usuarios = () => {
             if (result.isConfirmed) {
                 try {
                     const token = localStorage.getItem('token');
-                    const res = await fetch(`http://localhost:4000/api/usuarios/${id}`, { 
+                    const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/usuarios/${id}`, { 
                         method: 'DELETE',
                         headers: { 'Authorization': `Bearer ${token}` }
                     });

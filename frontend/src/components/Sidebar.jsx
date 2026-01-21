@@ -6,7 +6,7 @@ import Swal from 'sweetalert2';
 import logo from '../assets/logo_sit.jpg'; 
 
 // Definimos la URL del backend
-const BACKEND_URL = 'http://localhost:4000';
+const BACKEND_URL = 'https://sit-dunkin-backend.onrender.com';
 
 const Sidebar = () => {
   const location = useLocation();

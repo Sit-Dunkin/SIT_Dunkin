@@ -26,7 +26,7 @@ const AuditoriaSistema = () => {
     const fetchUsuarios = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:4000/api/auditoria/usuarios-filtro', {
+        const res = await fetch('https://sit-dunkin-backend.onrender.com/api/auditoria/usuarios-filtro', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -60,7 +60,7 @@ const AuditoriaSistema = () => {
           limit: LIMIT
       });
       
-      const res = await fetch(`http://localhost:4000/api/auditoria/movimientos?${params.toString()}`, {
+      const res = await fetch(`https://sit-dunkin-backend.onrender.com/api/auditoria/movimientos?${params.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
