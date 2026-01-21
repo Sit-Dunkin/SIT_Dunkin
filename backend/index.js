@@ -22,9 +22,18 @@ dotenv.config();
 
 // --- CONFIGURACIÓN GLOBAL DNS (SOLUCIÓN DEFINITIVA TIMEOUT RENDER) ---
 // Esto obliga a Node.js a usar IPv4 primero, arreglando la conexión con Gmail
-if (dns.setDefaultResultOrder) {
-    dns.setDefaultResultOrder('ipv4first');
-}
+const originalLookup = dns.lookup;
+dns.lookup = (hostname, options, callback) => {
+    if (typeof options === 'function') {
+        callback = options;
+        options = {};
+    } else if (typeof options === 'number') {
+        options = { family: options };
+    }
+    options = options || {};
+    if (!options.family) options.family = 4;
+    return originalLookup(hostname, options, callback);
+};
 
 // --- CONFIGURACIÓN DE DIRECTORIOS (ES MODULES) ---
 const __filename = fileURLToPath(import.meta.url);
