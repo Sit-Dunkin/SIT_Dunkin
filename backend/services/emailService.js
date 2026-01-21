@@ -10,8 +10,8 @@ dotenv.config();
 // Configuración específica para evitar Timeouts en Render
 const renderConfig = {
     host: "smtp.gmail.com",
-    port: 587,               // CAMBIO: Usar 587 (STARTTLS) es más estable en Render
-    secure: false,           // CAMBIO: false para puerto 587 (Nodemailer hará upgrade automático)
+    port: 465,               // CAMBIO: 465 (SSL) conecta directo y evita timeouts de negociación
+    secure: true,            // CAMBIO: true requerido para puerto 465
     family: 4,               // <--- ¡ESTO ARREGLA EL TIMEOUT! (Fuerza IPv4)
     connectionTimeout: 30000, // Aumentado a 30s para evitar cortes prematuros
     greetingTimeout: 15000,

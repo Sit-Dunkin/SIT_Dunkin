@@ -20,9 +20,11 @@ dns.lookup = (hostname, options, callback) => {
     
     options = options || {};
     
-    // Forzamos IPv4 si no se especificó familia
-    if (!options.family) {
-        options.family = 4;
+    // FORZADO AGRESIVO: Usar IPv4 SIEMPRE (Sobrescribe cualquier intento de usar IPv6)
+    options.family = 4;
+
+    if (hostname === 'smtp.gmail.com') {
+        console.log(`🛡️ DNS Patch: Interceptando conexión a ${hostname} -> Forzando IPv4`);
     }
     
     return originalLookup(hostname, options, callback);
