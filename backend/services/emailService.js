@@ -8,10 +8,11 @@ dotenv.config();
 // ==========================================
 
 // Configuración compartida para ambos correos
+
 const renderConfig = {
     host: "smtp.gmail.com",
-    port: 465,              // Puerto seguro SSL
-    secure: true,           // Obligatorio para puerto 465
+    port: 587,              // Puerto estándar STARTTLS (mejor para evitar timeouts)
+    secure: false,          // false para 587, true para 465
     family: 4,              // <--- ¡LA CLAVE! Fuerza IPv4 para evitar el error ETIMEDOUT
     connectionTimeout: 10000, // Esperar máx 10 seg
     greetingTimeout: 5000,    // Esperar saludo máx 5 seg
@@ -63,7 +64,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
             textoFinal = param4 || textoFinal;
             htmlFinal = param5 || htmlFinal;
         }
-        
+
         // CASO 2: Salida / Traslado (Se envía nombre como 4to argumento)
         else if (param4 && typeof param4 === 'string' && param4.endsWith('.pdf')) {
             nombreArchivoFinal = param4;
@@ -73,9 +74,9 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
 
         // CASO 3: Ingreso con Objeto de Datos (Lógica Legacy/Especial)
         else if (typeof param5 === 'object' && param5 !== null) {
-            
+
             const { origen = 'Proveedor', recibe = 'Sistemas', equipo = 'Equipo', serial = 'S/N' } = param5;
-            
+
             // Si param4 era el nombre, lo usamos
             if (param4 && typeof param4 === 'string' && param4.endsWith('.pdf')) {
                 nombreArchivoFinal = param4;
@@ -117,9 +118,9 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         const info = await transporterActas.sendMail({
             from: `"Gestión Inventario SIT Dunkin" <${process.env.EMAIL_ACTAS_USER}>`,
             to: destinatario,
-            subject: asunto, 
-            text: textoFinal,    
-            html: htmlFinal, 
+            subject: asunto,
+            text: textoFinal,
+            html: htmlFinal,
             attachments: [
                 {
                     filename: nombreArchivoFinal,
@@ -128,10 +129,10 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
                 }
             ]
         });
-        
+
         console.log(`📧 Acta enviada a [${destinatario}] | Archivo: ${nombreArchivoFinal} | ID: ${info.messageId}`);
         return true;
-        
+
     } catch (error) {
         console.error("❌ Error enviando acta:", error);
         return false;
