@@ -1,4 +1,4 @@
-// import './config/dnsPatch.js'; // <--- Desactivado para usar configuración nativa de Nodemailer
+import './config/dnsPatch.js'; // <--- ACTIVADO: Parche crítico para Render/Gmail
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';

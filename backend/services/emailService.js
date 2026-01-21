@@ -9,9 +9,12 @@ dotenv.config();
 
 // Configuración específica para evitar Timeouts en Render
 const renderConfig = {
-    service: 'gmail',        // PRESET: Usa config óptima de Google (Puerto 465, SSL)
-    family: 4,               // OBLIGATORIO: Fuerza IPv4 en Render
-    // Eliminamos timeouts excesivos para fallar rápido si no hay conexión
+    host: 'smtp.gmail.com',
+    port: 587,               // 587 (STARTTLS) es más estable en redes de nube que 465
+    secure: false,           // false requerido para STARTTLS
+    requireTLS: true,        // Fuerza la encriptación tras conectar
+    family: 4,               // Fuerza IPv4 (junto con el parche DNS)
+    connectionTimeout: 20000, // 20s para fallar rápido si no conecta
     logger: true,
     debug: true,             // Activado para ver logs detallados en Render
     tls: {
