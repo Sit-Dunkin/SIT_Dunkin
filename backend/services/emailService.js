@@ -13,10 +13,10 @@ const renderConfig = {
     port: 465,
     secure: true,            // Requerido para puerto 465
     family: 4,               // <--- ¡ESTO ARREGLA EL TIMEOUT! (Fuerza IPv4)
-    connectionTimeout: 10000,
-    greetingTimeout: 5000,
+    connectionTimeout: 30000, // Aumentado a 30s para evitar cortes prematuros
+    greetingTimeout: 15000,
     logger: true,
-    debug: false             // Cambiar a true solo si sigue fallando
+    debug: true              // Activado para ver logs detallados en Render
 };
 
 // Transporte A: Para enviar ACTAS

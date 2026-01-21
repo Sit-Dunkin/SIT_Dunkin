@@ -23,6 +23,10 @@ dotenv.config();
 // --- CONFIGURACIÓN GLOBAL DNS (SOLUCIÓN DEFINITIVA TIMEOUT RENDER) ---
 // Esto obliga a Node.js a usar IPv4 primero, arreglando la conexión con Gmail
 const originalLookup = dns.lookup;
+
+// Refuerzo para Node 17+ (Render suele usar versiones recientes)
+if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
+
 dns.lookup = (hostname, options, callback) => {
     if (typeof options === 'function') {
         callback = options;
