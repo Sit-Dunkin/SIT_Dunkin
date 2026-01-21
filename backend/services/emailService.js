@@ -9,15 +9,13 @@ dotenv.config();
 
 // Configuración compartida para ambos correos
 
+
 const renderConfig = {
-    host: "smtp.gmail.com",
-    port: 587,              // Puerto estándar STARTTLS (mejor para evitar timeouts)
-    secure: false,          // false para 587, true para 465
-    family: 4,              // <--- ¡LA CLAVE! Fuerza IPv4 para evitar el error ETIMEDOUT
-    connectionTimeout: 10000, // Esperar máx 10 seg
-    greetingTimeout: 5000,    // Esperar saludo máx 5 seg
-    logger: true,           // Para ver detalles en los logs de Render
-    debug: false            // Cambiar a true si sigue fallando
+    service: 'gmail',         // Preset automático de Nodemailer (maneja puertos/host automáticamente)
+    connectionTimeout: 20000, // Aumentar espera de conexión a 20 seg
+    greetingTimeout: 10000,   // Aumentar espera de saludo a 10 seg
+    logger: true,           // Logs detallados
+    debug: true             // Debug habilitado para diagnosticar
 };
 
 // Transporte A: Para enviar ACTAS
