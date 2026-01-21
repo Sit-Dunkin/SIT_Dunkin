@@ -4,24 +4,28 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ==========================================
-// 1. CONFIGURACIÓN DE TRANSPORTADORES
+// 1. CONFIGURACIÓN DE TRANSPORTADORES (MODO SEGURO RENDER)
 // ==========================================
 
 // Transporte A: Para enviar ACTAS
 const transporterActas = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",  // Servidor explícito
+    port: 465,               // Puerto seguro SSL
+    secure: true,            // Obligatorio para puerto 465
     auth: {
-        user: process.env.EMAIL_ACTAS_USER, 
-        pass: process.env.EMAIL_ACTAS_PASS  
+        user: process.env.EMAIL_ACTAS_USER,
+        pass: process.env.EMAIL_ACTAS_PASS
     }
 });
 
 // Transporte B: Para SEGURIDAD/CLAVES
 const transporterSeguridad = nodemailer.createTransport({
-    service: 'gmail',
+    host: "smtp.gmail.com",  // Servidor explícito
+    port: 465,               // Puerto seguro SSL
+    secure: true,            // Obligatorio para puerto 465
     auth: {
-        user: process.env.EMAIL_SEGURIDAD_USER, 
-        pass: process.env.EMAIL_SEGURIDAD_PASS  
+        user: process.env.EMAIL_SEGURIDAD_USER,
+        pass: process.env.EMAIL_SEGURIDAD_PASS
     }
 });
 
@@ -113,7 +117,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
             html: htmlFinal, 
             attachments: [
                 {
-                    filename: nombreArchivoFinal, // <--- Aquí usamos el nombre detectado
+                    filename: nombreArchivoFinal,
                     content: pdfBuffer,
                     contentType: 'application/pdf'
                 }
