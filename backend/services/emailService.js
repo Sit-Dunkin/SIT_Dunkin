@@ -10,12 +10,25 @@ dotenv.config();
 // Configuración compartida para ambos correos
 
 
+import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// ==========================================
+// 1. CONFIGURACIÓN BLINDADA (FORZANDO IPv4)
+// ==========================================
+
+// NO USAMOS 'service: gmail' PORQUE FALLA EN RENDER
 const renderConfig = {
-    service: 'gmail',         // Preset automático de Nodemailer (maneja puertos/host automáticamente)
-    connectionTimeout: 20000, // Aumentar espera de conexión a 20 seg
-    greetingTimeout: 10000,   // Aumentar espera de saludo a 10 seg
-    logger: true,           // Logs detallados
-    debug: true             // Debug habilitado para diagnosticar
+    host: "smtp.gmail.com",  // Servidor explícito
+    port: 465,               // Puerto Seguro
+    secure: true,            // Requerido para puerto 465
+    family: 4,               // <--- ¡ESTA ES LA SOLUCIÓN MÁGICA! (Fuerza IPv4)
+    connectionTimeout: 10000,
+    greetingTimeout: 5000,
+    logger: true,
+    debug: false
 };
 
 // Transporte A: Para enviar ACTAS
@@ -35,6 +48,9 @@ const transporterSeguridad = nodemailer.createTransport({
         pass: process.env.EMAIL_SEGURIDAD_PASS
     }
 });
+
+// ... (El resto de tus funciones enviarCorreoActa y enviarCorreoSeguridad déjalas igual) ...
+// ... Copia y pega tus funciones de abajo aquí ...
 
 // ==========================================
 // 2. FUNCIONES DE ENVÍO (LÓGICA ORIGINAL INTACTA)
