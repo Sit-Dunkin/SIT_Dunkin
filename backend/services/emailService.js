@@ -16,7 +16,10 @@ const renderConfig = {
     connectionTimeout: 30000, // Aumentado a 30s para evitar cortes prematuros
     greetingTimeout: 15000,
     logger: true,
-    debug: true              // Activado para ver logs detallados en Render
+    debug: true,             // Activado para ver logs detallados en Render
+    tls: {
+        rejectUnauthorized: false // Ayuda a evitar errores de handshake en la nube
+    }
 };
 
 // Transporte A: Para enviar ACTAS

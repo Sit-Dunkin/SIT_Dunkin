@@ -1,10 +1,10 @@
+import './config/dnsPatch.js'; // <--- 1. ¡ESTO DEBE IR PRIMERO!
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import dns from 'dns'; // <--- 1. IMPORTAR DNS
 
 // --- IMPORTAR RUTAS ---
 import equiposRoutes from './routes/equiposRoutes.js';
@@ -19,25 +19,6 @@ import actasRoutes from './routes/actasRoutes.js';
 
 // Cargar variables de entorno (.env)
 dotenv.config();
-
-// --- CONFIGURACIÓN GLOBAL DNS (SOLUCIÓN DEFINITIVA TIMEOUT RENDER) ---
-// Esto obliga a Node.js a usar IPv4 primero, arreglando la conexión con Gmail
-const originalLookup = dns.lookup;
-
-// Refuerzo para Node 17+ (Render suele usar versiones recientes)
-if (dns.setDefaultResultOrder) dns.setDefaultResultOrder('ipv4first');
-
-dns.lookup = (hostname, options, callback) => {
-    if (typeof options === 'function') {
-        callback = options;
-        options = {};
-    } else if (typeof options === 'number') {
-        options = { family: options };
-    }
-    options = options || {};
-    if (!options.family) options.family = 4;
-    return originalLookup(hostname, options, callback);
-};
 
 // --- CONFIGURACIÓN DE DIRECTORIOS (ES MODULES) ---
 const __filename = fileURLToPath(import.meta.url);
