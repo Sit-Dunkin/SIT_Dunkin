@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dns from 'dns'; // <--- 1. IMPORTAR DNS
 
 // --- IMPORTAR RUTAS ---
 import equiposRoutes from './routes/equiposRoutes.js';
@@ -19,6 +20,12 @@ import actasRoutes from './routes/actasRoutes.js';
 // Cargar variables de entorno (.env)
 dotenv.config();
 
+// --- CONFIGURACIÓN GLOBAL DNS (SOLUCIÓN DEFINITIVA TIMEOUT RENDER) ---
+// Esto obliga a Node.js a usar IPv4 primero, arreglando la conexión con Gmail
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
+
 // --- CONFIGURACIÓN DE DIRECTORIOS (ES MODULES) ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,7 +39,6 @@ const PORT = process.env.PORT || 4000;
 // --- MIDDLEWARES ---
 
 // 1. CORS: Permite que tu Frontend (React) hable con este Backend
-// En producción, podrías restringirlo a tu dominio real, ej: app.use(cors({ origin: 'https://mi-app.onrender.com' }));
 app.use(cors()); 
 
 // 2. Logger: Muestra las peticiones en la consola
@@ -43,8 +49,6 @@ app.use(express.json());
 
 // --- ARCHIVOS ESTÁTICOS ---
 // Servir la carpeta 'uploads' públicamente
-// Nota para Render: Los archivos subidos aquí se perderán al reiniciar el servidor (disco efímero).
-// Solución futura: Usar Supabase Storage o Cloudinary.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- DEFINIR ENDPOINTS (RUTAS) ---
@@ -56,11 +60,9 @@ app.use('/api/usuarios', usuariosRoutes);   // Gestión Empleados y Perfil
 app.use('/api/auditoria', auditoriaRoutes); // Historial del Sistema
 app.use('/api/contactos', contactosRoutes); // Proveedores y Puntos de Venta
 app.use('/api/movimientos', movimientosRoutes); // Trazabilidad detallada
-app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/actas', actasRoutes);
 
 // --- RUTA DE PRUEBA (HEALTH CHECK) ---
-// Útil para que Render sepa que el servicio está vivo
 app.get('/', (req, res) => {
     res.json({ 
         message: 'API SIT Dunkin Donuts - Online 🟢',
@@ -82,4 +84,3 @@ app.listen(PORT, () => {
     console.log(`📡 URL Base: http://localhost:${PORT}`);
     console.log(`📂 Sirviendo archivos estáticos desde: ${path.join(__dirname, 'uploads')}`);
 });
-
