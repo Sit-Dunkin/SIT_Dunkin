@@ -4,19 +4,24 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ==========================================
-// 1. CONFIGURACIÓN BLINDADA (FORZANDO IPv4)
+// 1. CONFIGURACIÓN "ANTI-BLOQUEO" PARA RENDER
 // ==========================================
 
-// Configuración específica para evitar Timeouts en Render
 const renderConfig = {
-    service: 'gmail',        // CAMBIO: Usar preset de Gmail (Puerto 465, SSL)
-    family: 4,               // Fuerza IPv4 (junto con el parche DNS)
-    connectionTimeout: 20000, // 20s para fallar rápido si no conecta
-    logger: true,
-    debug: true,             // Activado para ver logs detallados en Render
+    host: "smtp.googlemail.com", // TRUCO: Usamos este alias en vez de smtp.gmail.com
+    port: 587,                   // Puerto estándar TLS (Mejor para la nube que el 465)
+    secure: false,               // false para puerto 587
+    auth: {
+        user: process.env.EMAIL_ACTAS_USER, // Se sobreescribe abajo según el caso, pero definimos base
+        pass: process.env.EMAIL_ACTAS_PASS
+    },
     tls: {
-        rejectUnauthorized: false // Ayuda a evitar errores de handshake en la nube
-    }
+        rejectUnauthorized: false // <--- LA CLAVE: Evita que el firewall corte la conexión por certificados
+    },
+    // Tiempos de espera cortos para que no se quede colgado 2 minutos
+    connectionTimeout: 10000, 
+    greetingTimeout: 5000,
+    socketTimeout: 10000
 };
 
 // Transporte A: Para enviar ACTAS
@@ -38,44 +43,30 @@ const transporterSeguridad = nodemailer.createTransport({
 });
 
 // ==========================================
-// 2. FUNCIONES DE ENVÍO
+// 2. FUNCIONES DE ENVÍO (TU LÓGICA DE SIEMPRE)
 // ==========================================
 
-/**
- * Función MAESTRA para enviar ACTAS.
- */
 export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
     try {
-        // --- VALORES POR DEFECTO ---
         let nombreArchivoFinal = `Documento_SIT_${Date.now()}.pdf`;
         let textoFinal = "Adjunto encontrarás el acta generada por el sistema SIT.";
         let htmlFinal = "<p>Adjunto encontrarás el documento en PDF.</p>";
 
-        // CASO 1: Ingreso Individual / Masiva
+        // LOGICA DE PARAMETROS
         if (param6 && typeof param6 === 'string' && param6.endsWith('.pdf')) {
             nombreArchivoFinal = param6;
             textoFinal = param4 || textoFinal;
             htmlFinal = param5 || htmlFinal;
-        }
-        
-        // CASO 2: Salida / Traslado
-        else if (param4 && typeof param4 === 'string' && param4.endsWith('.pdf')) {
+        } else if (param4 && typeof param4 === 'string' && param4.endsWith('.pdf')) {
             nombreArchivoFinal = param4;
             htmlFinal = param5 || htmlFinal;
             textoFinal = `Hola, adjunto encontrarás el archivo: ${nombreArchivoFinal}`;
-        }
-
-        // CASO 3: Ingreso con Objeto de Datos
-        else if (typeof param5 === 'object' && param5 !== null) {
-            
+        } else if (typeof param5 === 'object' && param5 !== null) {
             const { origen = 'Proveedor', recibe = 'Sistemas', equipo = 'Equipo', serial = 'S/N' } = param5;
-            
             if (param4 && typeof param4 === 'string' && param4.endsWith('.pdf')) {
                 nombreArchivoFinal = param4;
             }
-
             textoFinal = `Ingreso de equipo: ${equipo}. Origen: ${origen}. Recibe: ${recibe}.`;
-
             htmlFinal = `
                 <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
                     <div style="background-color: #F37021; padding: 20px; text-align: center;">
@@ -96,9 +87,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
                     </div>
                 </div>
             `;
-        }
-        // CASO 4: Fallback simple
-        else {
+        } else {
             if (param4) textoFinal = param4;
             if (param5) htmlFinal = param5;
         }
@@ -109,13 +98,11 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
             subject: asunto, 
             text: textoFinal,    
             html: htmlFinal, 
-            attachments: [
-                {
-                    filename: nombreArchivoFinal,
-                    content: pdfBuffer,
-                    contentType: 'application/pdf'
-                }
-            ]
+            attachments: [{
+                filename: nombreArchivoFinal,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            }]
         });
         
         console.log(`📧 Acta enviada a [${destinatario}] | ID: ${info.messageId}`);
@@ -127,12 +114,9 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
     }
 };
 
-/**
- * Función para enviar CÓDIGOS DE RECUPERACIÓN.
- */
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
-        console.log(`🔒 Intentando enviar seguridad a: ${destinatario}...`);
+        console.log(`🔒 Intentando enviar seguridad a: ${destinatario} usando Puerto 587...`);
 
         const info = await transporterSeguridad.sendMail({
             from: `"Seguridad SIT Dunkin" <${process.env.EMAIL_SEGURIDAD_USER}>`,
