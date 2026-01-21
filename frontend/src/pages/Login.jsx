@@ -47,8 +47,11 @@ const Login = () => {
                 {/* --- LOGO Y TÍTULO --- */}
                 <div className="flex flex-col items-center justify-center mb-6">
                     <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-900/20 border-2 border-slate-800 overflow-hidden p-1 mb-4">
-                        <img src={logo} alt="SIT Logo" className="w-full h-full object-cover rounded-xl" />
-                    </div>
+                    <img
+                    src={logo} // Aquí usas la variable que importaste arriba
+                    alt="SIT Logo"
+                    className="w-full h-full object-cover rounded-xl"
+                    />                    </div>
                     <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
                         Bienvenido al <span className="text-orange-600">SIT</span>
                     </h1>
