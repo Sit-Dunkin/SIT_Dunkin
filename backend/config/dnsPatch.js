@@ -25,6 +25,7 @@ dns.lookup = (hostname, options, callback) => {
 
     if (hostname === 'smtp.gmail.com') {
         console.log(`🛡️ DNS Patch: Interceptando conexión a ${hostname} -> Forzando IPv4`);
+        console.error(`🛡️ DNS Patch: Interceptando conexión a ${hostname} -> Forzando IPv4`);
     }
     
     return originalLookup(hostname, options, callback);
