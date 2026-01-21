@@ -4,14 +4,25 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ==========================================
-// 1. CONFIGURACIÓN DE TRANSPORTADORES (MODO SEGURO RENDER)
+// 1. CONFIGURACIÓN DE TRANSPORTADORES (BLINDADA PARA RENDER)
 // ==========================================
+
+// Configuración común para evitar bloqueos en la nube
+const commonConfig = {
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true, // true para puerto 465
+    family: 4,    // <--- ¡LA SOLUCIÓN! (Fuerza IPv4 para evitar timeouts)
+    connectionTimeout: 10000, // 10 segundos máximo de espera
+    greetingTimeout: 5000,    // 5 segundos para el saludo
+    socketTimeout: 10000,     // 10 segundos para sockets
+    logger: true, // Veremos logs detallados en Render si falla
+    debug: false  // Cambia a true si necesitas ver datos técnicos
+};
 
 // Transporte A: Para enviar ACTAS
 const transporterActas = nodemailer.createTransport({
-    host: "smtp.gmail.com",  // Servidor explícito
-    port: 465,               // Puerto seguro SSL
-    secure: true,            // Obligatorio para puerto 465
+    ...commonConfig, // Hereda la configuración blindada
     auth: {
         user: process.env.EMAIL_ACTAS_USER,
         pass: process.env.EMAIL_ACTAS_PASS
@@ -20,9 +31,7 @@ const transporterActas = nodemailer.createTransport({
 
 // Transporte B: Para SEGURIDAD/CLAVES
 const transporterSeguridad = nodemailer.createTransport({
-    host: "smtp.gmail.com",  // Servidor explícito
-    port: 465,               // Puerto seguro SSL
-    secure: true,            // Obligatorio para puerto 465
+    ...commonConfig, // Hereda la configuración blindada
     auth: {
         user: process.env.EMAIL_SEGURIDAD_USER,
         pass: process.env.EMAIL_SEGURIDAD_PASS
@@ -50,7 +59,6 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         // ============================================================
 
         // CASO 1: Ingreso Individual / Masiva (Se envía nombre explícito como 6to argumento)
-        // createStock(..., texto, html, nombreArchivo)
         if (param6 && typeof param6 === 'string' && param6.endsWith('.pdf')) {
             nombreArchivoFinal = param6;
             textoFinal = param4 || textoFinal;
@@ -58,7 +66,6 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         }
         
         // CASO 2: Salida / Traslado (Se envía nombre como 4to argumento)
-        // trasladarEquipos(..., nombreArchivo, html)
         else if (param4 && typeof param4 === 'string' && param4.endsWith('.pdf')) {
             nombreArchivoFinal = param4;
             htmlFinal = param5 || htmlFinal;
@@ -66,7 +73,6 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         }
 
         // CASO 3: Ingreso con Objeto de Datos (Lógica Legacy/Especial)
-        // enviarCorreo(..., texto, objetoDatos)
         else if (typeof param5 === 'object' && param5 !== null) {
             
             const { origen = 'Proveedor', recibe = 'Sistemas', equipo = 'Equipo', serial = 'S/N' } = param5;
@@ -138,6 +144,8 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
  */
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
+        console.log(`🔒 Intentando enviar correo seguridad a: ${destinatario}...`);
+
         const info = await transporterSeguridad.sendMail({
             from: `"Seguridad SIT Dunkin" <${process.env.EMAIL_SEGURIDAD_USER}>`,
             to: destinatario,
@@ -145,10 +153,10 @@ export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
             html: htmlBody
         });
 
-        console.log("🔒 Correo seguridad enviado | ID: " + info.messageId);
+        console.log("✅ Correo seguridad enviado | ID: " + info.messageId);
         return true;
     } catch (error) {
-        console.error("❌ Error enviando seguridad:", error);
+        console.error("❌ Error CRÍTICO enviando seguridad:", error);
         return false;
     }
 };
