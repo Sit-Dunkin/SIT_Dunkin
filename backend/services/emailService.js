@@ -4,25 +4,24 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ==========================================
-// 1. CONFIGURACIÓN DE TRANSPORTADORES (BLINDADA PARA RENDER)
+// 1. CONFIGURACIÓN BLINDADA (EVITA TIMEOUTS EN RENDER)
 // ==========================================
 
-// Configuración común para evitar bloqueos en la nube
-const commonConfig = {
+// Configuración compartida para ambos correos
+const renderConfig = {
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // true para puerto 465
-    family: 4,    // <--- ¡LA SOLUCIÓN! (Fuerza IPv4 para evitar timeouts)
-    connectionTimeout: 10000, // 10 segundos máximo de espera
-    greetingTimeout: 5000,    // 5 segundos para el saludo
-    socketTimeout: 10000,     // 10 segundos para sockets
-    logger: true, // Veremos logs detallados en Render si falla
-    debug: false  // Cambia a true si necesitas ver datos técnicos
+    port: 465,              // Puerto seguro SSL
+    secure: true,           // Obligatorio para puerto 465
+    family: 4,              // <--- ¡LA CLAVE! Fuerza IPv4 para evitar el error ETIMEDOUT
+    connectionTimeout: 10000, // Esperar máx 10 seg
+    greetingTimeout: 5000,    // Esperar saludo máx 5 seg
+    logger: true,           // Para ver detalles en los logs de Render
+    debug: false            // Cambiar a true si sigue fallando
 };
 
 // Transporte A: Para enviar ACTAS
 const transporterActas = nodemailer.createTransport({
-    ...commonConfig, // Hereda la configuración blindada
+    ...renderConfig,
     auth: {
         user: process.env.EMAIL_ACTAS_USER,
         pass: process.env.EMAIL_ACTAS_PASS
@@ -31,7 +30,7 @@ const transporterActas = nodemailer.createTransport({
 
 // Transporte B: Para SEGURIDAD/CLAVES
 const transporterSeguridad = nodemailer.createTransport({
-    ...commonConfig, // Hereda la configuración blindada
+    ...renderConfig,
     auth: {
         user: process.env.EMAIL_SEGURIDAD_USER,
         pass: process.env.EMAIL_SEGURIDAD_PASS
@@ -39,7 +38,7 @@ const transporterSeguridad = nodemailer.createTransport({
 });
 
 // ==========================================
-// 2. FUNCIONES DE ENVÍO
+// 2. FUNCIONES DE ENVÍO (LÓGICA ORIGINAL INTACTA)
 // ==========================================
 
 /**
@@ -144,7 +143,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
  */
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
-        console.log(`🔒 Intentando enviar correo seguridad a: ${destinatario}...`);
+        console.log(`🔒 Iniciando envío de seguridad a: ${destinatario}...`);
 
         const info = await transporterSeguridad.sendMail({
             from: `"Seguridad SIT Dunkin" <${process.env.EMAIL_SEGURIDAD_USER}>`,
@@ -153,10 +152,11 @@ export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
             html: htmlBody
         });
 
-        console.log("✅ Correo seguridad enviado | ID: " + info.messageId);
+        console.log("✅ Correo seguridad enviado EXITOSAMENTE | ID: " + info.messageId);
         return true;
     } catch (error) {
         console.error("❌ Error CRÍTICO enviando seguridad:", error);
+        // Aquí podrías ver el error exacto en los logs de Render
         return false;
     }
 };
