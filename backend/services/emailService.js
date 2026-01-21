@@ -10,14 +10,15 @@ const renderConfig = {
     host: "smtp.gmail.com",  // Usamos el host estándar
     port: 587,               // Puerto TLS (Mejor compatibilidad en nube)
     secure: false,           // false para puerto 587 (Usa STARTTLS)
-    family: 4,               // <--- CRÍTICO: Fuerza IPv4 para evitar Timeouts
+    family: 4,               // <--- CRÍTICO: Fuerza IPv4 (Redundancia por seguridad)
     auth: {
         user: process.env.EMAIL_ACTAS_USER,
         pass: process.env.EMAIL_ACTAS_PASS
     },
     tls: {
-        rejectUnauthorized: false // Evita bloqueos por certificados de seguridad
+        rejectUnauthorized: false // Evita bloqueos por certificados de seguridad estrictos
     },
+    // Tiempos de espera generosos pero limitados para no colgar el servidor
     connectionTimeout: 10000, 
     greetingTimeout: 5000,
     socketTimeout: 10000
@@ -80,6 +81,9 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
                             <p style="margin: 5px 0;"><strong>🔢 Serial:</strong> ${serial}</p>
                         </div>
                         <p>El documento oficial se encuentra adjunto.</p>
+                    </div>
+                    <div style="background-color: #f4f4f4; padding: 10px; text-align: center; font-size: 12px; color: #777;">
+                        Tecnología y Sistemas Dunkin'
                     </div>
                 </div>
             `;

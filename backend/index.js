@@ -1,3 +1,4 @@
+import dns from 'dns'; // <--- 1. IMPORTANTE: Importamos módulo DNS
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -18,6 +19,15 @@ import actasRoutes from './routes/actasRoutes.js';
 
 // Cargar variables de entorno (.env)
 dotenv.config();
+
+// ==========================================
+// 2. CONFIGURACIÓN GLOBAL DNS (FIX RENDER/IPV6)
+// ==========================================
+// Esto es el "parche maestro". Obliga a todo Node.js a usar IPv4
+// antes de intentar cualquier conexión externa (como Gmail).
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+}
 
 // --- CONFIGURACIÓN DE DIRECTORIOS (ES MODULES) ---
 const __filename = fileURLToPath(import.meta.url);
@@ -60,6 +70,7 @@ app.get('/', (req, res) => {
     res.json({ 
         message: 'API SIT Dunkin Donuts - Online 🟢',
         platform: process.platform,
+        network: 'IPv4 Forced',
         database: 'PostgreSQL (Supabase)',
         timestamp: new Date()
     });
