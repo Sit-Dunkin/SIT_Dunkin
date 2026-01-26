@@ -74,7 +74,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4) 
         texto, 
         pdfBuffer,
         EMAIL_ACTAS,          // <--- sistemas.medellindunkin@gmail.com
-        'Sistemas Dunkin'
+        'SIT Dunkin'
     );
 };
 
