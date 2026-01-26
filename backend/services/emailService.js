@@ -1,99 +1,78 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// ==========================================
-// CONFIGURACIÓN NUCLEAR: CONEXIÓN POR IP DIRECTA
-// ==========================================
-// Usamos una IP oficial de Gmail para saltarnos el DNS de Render
-const GMAIL_IP = '142.250.115.108'; // smtp.gmail.com
+// Inicializamos Resend con la clave que ya guardaste en Render
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-console.log(`📧 INICIANDO SERVICIO DE CORREO - CONECTANDO A IP: ${GMAIL_IP}`);
-
-const renderConfig = {
-    host: GMAIL_IP,          // <--- TRUCO: Conectamos a la IP, no al nombre
-    port: 465,               // Puerto SSL
-    secure: true,            // SSL Activado
-    auth: {
-        user: process.env.EMAIL_ACTAS_USER,
-        pass: process.env.EMAIL_ACTAS_PASS
-    },
-    tls: {
-        // IMPORTANTE: Como usamos IP, debemos decirle que el certificado
-        // válido es el de 'smtp.gmail.com', si no, dará error de seguridad.
-        servername: 'smtp.gmail.com', 
-        rejectUnauthorized: false
-    },
-    // Tiempos de espera estrictos
-    connectionTimeout: 10000, 
-    socketTimeout: 10000
-};
-
-// Crear transportadores
-const transporterActas = nodemailer.createTransport({
-    ...renderConfig,
-    auth: { user: process.env.EMAIL_ACTAS_USER, pass: process.env.EMAIL_ACTAS_PASS }
-});
-
-const transporterSeguridad = nodemailer.createTransport({
-    ...renderConfig,
-    auth: { user: process.env.EMAIL_SEGURIDAD_USER, pass: process.env.EMAIL_SEGURIDAD_PASS }
-});
-
-// Verificación inmediata al cargar el archivo
-transporterSeguridad.verify((error, success) => {
-    if (error) {
-        console.error("❌ ERROR AL CONECTAR A LA IP DE GMAIL:", error);
-    } else {
-        console.log("✅ CONEXIÓN EXITOSA POR IP DIRECTA 🚀");
-    }
-});
+// ⚠️ IMPORTANTE: En modo prueba (gratis), Resend te obliga a usar este remitente.
+// No lo cambies por ahora.
+const FROM_EMAIL = 'onboarding@resend.dev'; 
 
 // ==========================================
-// FUNCIONES DE ENVÍO
+// FUNCIONES DE ENVÍO (ADAPTADAS A RESEND)
 // ==========================================
 
 export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
     try {
-        // Lógica de parámetros simplificada para asegurar funcionamiento
-        let nombreArchivoFinal = `Documento_SIT.pdf`;
-        let textoFinal = "Adjunto documento SIT.";
-        let htmlFinal = "<p>Adjunto documento SIT.</p>";
+        console.log(`📤 [Resend] Intentando enviar acta a: ${destinatario}`);
 
-        if (param6 && typeof param6 === 'string') { nombreArchivoFinal = param6; textoFinal = param4; htmlFinal = param5; }
-        else if (param4 && typeof param4 === 'string') { nombreArchivoFinal = param4; htmlFinal = param5; }
+        // Lógica para detectar el mensaje de texto (mantenemos compatibilidad con tu código viejo)
+        let textoFinal = "Adjunto encontrarás el acta generada por el sistema SIT.";
+        if (param4 && typeof param4 === 'string' && !param4.endsWith('.pdf')) {
+            textoFinal = param4;
+        }
 
-        const info = await transporterActas.sendMail({
-            from: `"SIT Dunkin" <${process.env.EMAIL_ACTAS_USER}>`,
-            to: destinatario,
-            subject: asunto, 
-            text: textoFinal,    
-            html: htmlFinal, 
-            attachments: [{ filename: nombreArchivoFinal, content: pdfBuffer, contentType: 'application/pdf' }]
+        // OJO: En modo prueba, 'destinatario' DEBE ser tu mismo correo (el registrado en Resend)
+        const data = await resend.emails.send({
+            from: `SIT Dunkin <${FROM_EMAIL}>`,
+            to: [destinatario], 
+            subject: asunto,
+            html: `<p>${textoFinal}</p>`, // Resend pide HTML
+            text: textoFinal,
+            attachments: [
+                {
+                    filename: 'Documento_SIT.pdf',
+                    content: pdfBuffer
+                }
+            ]
         });
-        
-        console.log(`✅ Acta enviada: ${info.messageId}`);
+
+        if (data.error) {
+            console.error("❌ Error Resend:", data.error);
+            return false;
+        }
+
+        console.log(`✅ Acta enviada con éxito. ID: ${data.data.id}`);
         return true;
+        
     } catch (error) {
-        console.error("❌ Error enviando acta:", error);
+        console.error("❌ Error crítico enviando acta:", error);
         return false;
     }
 };
 
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
-        console.log(`🔒 Enviando seguridad a: ${destinatario} (Vía IP)...`);
-        const info = await transporterSeguridad.sendMail({
-            from: `"Seguridad SIT" <${process.env.EMAIL_SEGURIDAD_USER}>`,
-            to: destinatario,
+        console.log(`🔒 [Resend] Enviando código a: ${destinatario}`);
+
+        const data = await resend.emails.send({
+            from: `Seguridad SIT <${FROM_EMAIL}>`,
+            to: [destinatario], // Recuerda: Solo llegará si es TU correo por ahora
             subject: asunto,
             html: htmlBody
         });
-        console.log("✅ Enviado correctamente: " + info.messageId);
+
+        if (data.error) {
+            console.error("❌ Error Resend:", data.error);
+            return false;
+        }
+
+        console.log("✅ Código de seguridad enviado. ID: " + data.data.id);
         return true;
     } catch (error) {
-        console.error("❌ Error enviando seguridad:", error);
+        console.error("❌ Error crítico enviando seguridad:", error);
         return false;
     }
 };
