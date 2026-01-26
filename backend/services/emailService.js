@@ -1,46 +1,58 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import dns from 'dns';
+import util from 'util';
 
 dotenv.config();
 
+// Promisify dns.lookup para usarlo con async/await
+const lookup = util.promisify(dns.lookup);
+
 // ==========================================
-// CONFIGURACIÓN "LAZY" (PEREZOSA)
+// CONFIGURACIÓN NUCLEAR (RESOLUCIÓN IP MANUAL)
 // ==========================================
-// No creamos el transporter todavía. Lo guardamos aquí.
 let transporter = null;
 
-const getTransporter = () => {
-    // Si ya existe, lo devolvemos (para no reconectar mil veces)
+const getTransporter = async () => {
+    // Si ya tenemos un transporter listo, lo reusamos
     if (transporter) return transporter;
 
-    console.log("🛠️ CREANDO TRANSPORTE DE CORREO (Ahora sí con IPv4)...");
+    console.log("🛠️ RESOLVIENDO IP DE GMAIL MANUALMENTE...");
 
-    // PARCHE DE SEGURIDAD FINAL: Aseguramos IPv4 justo antes de crear
-    if (dns.setDefaultResultOrder) {
-        try {
-            dns.setDefaultResultOrder('ipv4first');
-        } catch (e) { /* Ignorar si ya estaba puesto */ }
+    try {
+        // 1. Buscamos la IP exacta de Google (Forzando IPv4)
+        // Esto evita que Render intente usar IPv6 o se confunda con el DNS
+        const { address } = await lookup('smtp.gmail.com', { family: 4 });
+        
+        console.log(`🎯 IP DE GMAIL ENCONTRADA: ${address} (Usando esta para conectar)`);
+
+        // 2. Configuramos el transporte usando la IP DIRECTAMENTE
+        transporter = nodemailer.createTransport({
+            host: address, // <--- ¡AQUÍ ESTÁ EL TRUCO! Usamos la IP, no el nombre
+            port: 465,     // Puerto SSL
+            secure: true,  // SSL Activado
+            auth: {
+                user: process.env.EMAIL_ACTAS_USER,
+                pass: process.env.EMAIL_ACTAS_PASS
+            },
+            tls: {
+                // Importante: Como nos conectamos a una IP, debemos decirle
+                // que el certificado esperado es el de gmail.com
+                servername: 'smtp.gmail.com',
+                rejectUnauthorized: false
+            },
+            // Tiempos de espera
+            connectionTimeout: 10000, 
+            socketTimeout: 10000
+        });
+
+        console.log("✅ TRANSPORTE CREADO CON ÉXITO");
+        return transporter;
+
+    } catch (error) {
+        console.error("❌ ERROR AL RESOLVER DNS O CREAR TRANSPORTE:", error);
+        throw error;
     }
-
-    // Configuración Blindada (Puerto 465 SSL)
-    transporter = nodemailer.createTransport({
-        host: "smtp.gmail.com",
-        port: 465,
-        secure: true, // SSL Directo
-        auth: {
-            user: process.env.EMAIL_ACTAS_USER, // Usamos este como principal
-            pass: process.env.EMAIL_ACTAS_PASS
-        },
-        tls: {
-            rejectUnauthorized: false
-        },
-        // Tiempos cortos para no colgar el servidor si falla
-        connectionTimeout: 10000, 
-        socketTimeout: 10000
-    });
-
-    return transporter;
 };
 
 // ==========================================
@@ -49,10 +61,10 @@ const getTransporter = () => {
 
 export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
     try {
-        // 1. Obtenemos el transporte justo ahora (no antes)
-        const mailer = getTransporter();
+        // Obtenemos el transporte (esperando la resolución de IP)
+        const mailer = await getTransporter();
 
-        // 2. Preparamos los datos (Tu lógica original)
+        // Lógica de parámetros (Tu código original)
         let nombreArchivoFinal = `Documento_SIT.pdf`;
         let textoFinal = "Adjunto documento SIT.";
         let htmlFinal = "<p>Adjunto documento SIT.</p>";
@@ -60,7 +72,6 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         if (param6 && typeof param6 === 'string') { nombreArchivoFinal = param6; textoFinal = param4; htmlFinal = param5; }
         else if (param4 && typeof param4 === 'string') { nombreArchivoFinal = param4; htmlFinal = param5; }
 
-        // 3. Enviamos
         const info = await mailer.sendMail({
             from: `"SIT Dunkin" <${process.env.EMAIL_ACTAS_USER}>`,
             to: destinatario,
@@ -74,22 +85,21 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         return true;
     } catch (error) {
         console.error("❌ Error enviando acta:", error);
+        transporter = null; // Resetear por si la IP cambió
         return false;
     }
 };
 
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
-        console.log(`🔒 Intentando enviar seguridad a: ${destinatario}...`);
+        console.log(`🔒 Iniciando proceso de envío a: ${destinatario}...`);
         
-        // 1. Obtenemos el transporte justo ahora (Asegurando que IPv4 ya cargó)
-        // Nota: Usamos las mismas credenciales para simplificar la conexión en Render,
-        // pero cambiamos el "from" visualmente.
-        const mailer = getTransporter();
+        // 1. Obtenemos el transporte (Resolviendo IP si es necesario)
+        const mailer = await getTransporter();
 
         // 2. Enviamos
         const info = await mailer.sendMail({
-            from: `"Seguridad SIT" <${process.env.EMAIL_SEGURIDAD_USER}>`, // El usuario ve esto
+            from: `"Seguridad SIT" <${process.env.EMAIL_SEGURIDAD_USER}>`,
             to: destinatario,
             subject: asunto,
             html: htmlBody
@@ -99,7 +109,7 @@ export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
         return true;
     } catch (error) {
         console.error("❌ Error enviando seguridad:", error);
-        // Si falla, intentamos resetear el transporter para la próxima
+        // Si falla, borramos el transporter para intentar resolver la IP de nuevo la próxima vez
         transporter = null; 
         return false;
     }
