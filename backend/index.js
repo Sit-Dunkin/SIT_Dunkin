@@ -1,4 +1,4 @@
-import dns from 'dns'; // <--- 1. ESTO ES LO MÁS IMPORTANTE
+import dns from 'dns'; // <--- 1. ESTO ES VITAL
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -17,31 +17,26 @@ import contactosRoutes from './routes/contactosRoutes.js';
 import movimientosRoutes from './routes/movimientosRoutes.js';
 import actasRoutes from './routes/actasRoutes.js';
 
-// Cargar variables de entorno (.env)
 dotenv.config();
 
 // ==========================================
-// 2. PARCHE GLOBAL DE RED (OBLIGATORIO PARA RENDER)
+// 2. FORZAR IPV4 (SOLUCIÓN PARA RENDER)
 // ==========================================
-// Esto evita que Render intente usar IPv6 y falle al conectar con Gmail
 if (dns.setDefaultResultOrder) {
     dns.setDefaultResultOrder('ipv4first');
 }
 
-// --- CONFIGURACIÓN DE DIRECTORIOS (ES MODULES) ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// --- MIDDLEWARES ---
 app.use(cors()); 
 app.use(morgan('dev'));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// --- DEFINIR ENDPOINTS (RUTAS) ---
 app.use('/api/auth', authRoutes);
 app.use('/api/equipos', equiposRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -52,18 +47,16 @@ app.use('/api/contactos', contactosRoutes);
 app.use('/api/movimientos', movimientosRoutes);
 app.use('/api/actas', actasRoutes);
 
-// --- RUTA DE PRUEBA ---
 app.get('/', (req, res) => {
-    res.json({ status: 'Online 🟢', protocol: 'IPv4 Forced' });
+    res.json({ status: 'Online 🟢', version: 'NUEVA_CORREGIDA_IPV4' });
 });
 
-// --- MANEJO DE ERRORES ---
 app.use((err, req, res, next) => {
     console.error("❌ Error:", err.stack);
     res.status(500).json({ message: 'Error interno del servidor.' });
 });
 
-// --- INICIAR SERVIDOR ---
 app.listen(PORT, () => {
     console.log(`\n🚀 SERVIDOR ONLINE EN PUERTO: ${PORT}`);
+    console.log(`🛡️ SISTEMA FORZADO A IPV4 PARA GMAIL`);
 });
