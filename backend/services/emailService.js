@@ -1,56 +1,95 @@
-import { Resend } from 'resend';
 import dotenv from 'dotenv';
-
 dotenv.config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM_EMAIL = 'onboarding@resend.dev'; 
+// ==========================================
+// CONFIGURACIÓN BREVO (API HTTP)
+// ==========================================
+const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
+const API_KEY = process.env.BREVO_API_KEY; // ¡Asegúrate de tener esta variable en Render!
 
-export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
+// TUS CORREOS VERIFICADOS
+const EMAIL_SEGURIDAD = 'seguridad.dunkinmed@gmail.com';
+const EMAIL_ACTAS = 'sistemas.medellindunkin@gmail.com';
+
+/**
+ * Función maestra para enviar correos vía Brevo
+ */
+const sendEmailViaBrevo = async (toEmail, subject, htmlContent, textContent, pdfBuffer, senderEmail, senderName) => {
     try {
-        console.log(`📤 [Resend] Intentando enviar acta a: ${destinatario}`);
-        let textoFinal = "Adjunto documento SIT.";
-        if (param4 && typeof param4 === 'string') textoFinal = param4;
+        const body = {
+            sender: { name: senderName, email: senderEmail },
+            to: [{ email: toEmail }],
+            subject: subject,
+            htmlContent: htmlContent,
+            textContent: textContent
+        };
 
-        const data = await resend.emails.send({
-            from: `SIT Dunkin <${FROM_EMAIL}>`,
-            to: [destinatario], 
-            subject: asunto,
-            html: `<p>${textoFinal}</p>`,
-            text: textoFinal,
-            attachments: [{ filename: 'Documento_SIT.pdf', content: pdfBuffer }]
+        // Si hay PDF, lo adjuntamos
+        if (pdfBuffer) {
+            body.attachment = [{
+                name: 'Documento_SIT.pdf',
+                content: pdfBuffer.toString('base64')
+            }];
+        }
+
+        const response = await fetch(BREVO_URL, {
+            method: 'POST',
+            headers: {
+                'accept': 'application/json',
+                'api-key': API_KEY,
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify(body)
         });
 
-        if (data.error) {
-            console.error("❌ Error Resend:", data.error);
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("❌ Error Brevo:", JSON.stringify(errorData));
             return false;
         }
-        console.log(`✅ Acta enviada ID: ${data.data.id}`);
+
+        console.log(`✅ Correo enviado a ${toEmail} desde ${senderEmail}`);
         return true;
+
     } catch (error) {
-        console.error("❌ Error crítico Resend:", error);
+        console.error("❌ Error conectando con Brevo:", error);
         return false;
     }
 };
 
-export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
-    try {
-        console.log(`🔒 [Resend] Enviando código a: ${destinatario}`);
-        const data = await resend.emails.send({
-            from: `Seguridad SIT <${FROM_EMAIL}>`,
-            to: [destinatario], 
-            subject: asunto,
-            html: htmlBody
-        });
+// ==========================================
+// FUNCIONES QUE USA TU SISTEMA
+// ==========================================
 
-        if (data.error) {
-            console.error("❌ Error Resend:", data.error);
-            return false;
-        }
-        console.log("✅ Código enviado ID: " + data.data.id);
-        return true;
-    } catch (error) {
-        console.error("❌ Error crítico Resend:", error);
-        return false;
-    }
+// 1. Para enviar Actas (Usa el correo de SISTEMAS)
+export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4) => {
+    console.log(`📤 Enviando acta a: ${destinatario}`);
+    let texto = "Adjunto documento SIT.";
+    if (param4 && typeof param4 === 'string') texto = param4;
+    
+    return await sendEmailViaBrevo(
+        destinatario, 
+        asunto, 
+        `<p>${texto}</p>`, 
+        texto, 
+        pdfBuffer,
+        EMAIL_ACTAS,          // <--- sistemas.medellindunkin@gmail.com
+        'Sistemas Dunkin'
+    );
+};
+
+// 2. Para códigos de seguridad (Usa el correo de SEGURIDAD)
+export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
+    console.log(`🔒 Enviando código a: ${destinatario}`);
+    const texto = htmlBody.replace(/<[^>]*>?/gm, ''); 
+    
+    return await sendEmailViaBrevo(
+        destinatario, 
+        asunto, 
+        htmlBody, 
+        texto, 
+        null,
+        EMAIL_SEGURIDAD,      // <--- seguridad.dunkinmed@gmail.com
+        'Seguridad Sit Dunkin'
+    );
 };
