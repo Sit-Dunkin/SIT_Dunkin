@@ -1,24 +1,17 @@
 import dotenv from 'dotenv';
-dotenv.config(); // Carga las variables del archivo .env antes de usar nada
+dotenv.config(); 
 
 import pool from '../config/db.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
+// BORRAMOS NODEMAILER DE AQUÍ
+// import nodemailer from 'nodemailer'; <--- YA NO SE USA
 import { registrarAuditoria } from '../utils/auditoriaLogger.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro';
+// IMPORTAMOS TU SERVICIO NUEVO (RESEND)
+import { enviarCorreoSeguridad } from '../services/emailService.js';
 
-// ==========================================
-// CONFIGURACIÓN DE NODEMAILER
-// ==========================================
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_SEGURIDAD_USER,
-        pass: process.env.EMAIL_SEGURIDAD_PASS
-    }
-});
+const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro';
 
 // ==========================================
 // 1. INICIAR SESIÓN (LOGIN)
@@ -31,7 +24,6 @@ export const login = async (req, res) => {
     }
 
     try {
-        // Buscamos usuario con su ROL (Sintaxis PostgreSQL: $1 en lugar de ?)
         const result = await pool.query(
             `SELECT u.id, u.nombre_completo, u.email, u.password, u.rol_id, u.foto_perfil, u.estado, r.nombre as rol_nombre 
              FROM usuarios u 
@@ -40,30 +32,25 @@ export const login = async (req, res) => {
             [email]
         );
 
-        // En Postgres verificamos result.rows.length
         if (result.rows.length === 0) {
             return res.status(401).json({ message: "Usuario no encontrado." });
         }
 
         const user = result.rows[0];
 
-        // Verificar password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             return res.status(401).json({ message: "Contraseña incorrecta." });
         }
 
-        // Token
         const token = jwt.sign(
             { id: user.id, rol: user.rol_id, rol_nombre: user.rol_nombre },
             JWT_SECRET,
             { expiresIn: '8h' }
         );
 
-        // Auditoría
         await registrarAuditoria(user.id, 'INICIO DE SESIÓN', 'Ingreso exitoso al sistema SIT.');
 
-        // Foto limpia
         const fotoClean = user.foto_perfil ? user.foto_perfil.replace(/\\/g, '/') : null;
 
         res.json({
@@ -110,32 +97,36 @@ export const requestPasswordReset = async (req, res) => {
         
         if (result.rows.length === 0) return res.status(404).json({ message: "Correo no registrado." });
 
-        // Generar código de 6 dígitos
+        // Generar código
         const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-        // Guardar código en la BD (Sintaxis de intervalo PostgreSQL)
+        // Guardar código
         await pool.query(
             "UPDATE usuarios SET reset_code = $1, reset_expires = NOW() + INTERVAL '15 minutes' WHERE email = $2",
             [code, email]
         );
 
-        const mailOptions = {
-            from: `"Soporte SIT" <${process.env.EMAIL_SEGURIDAD_USER}>`,
-            to: email,
-            subject: 'Código de Recuperación SIT',
-            html: `
-                <div style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>Recuperación de Contraseña</h2>
-                    <p>Tu código de verificación es:</p>
-                    <h1 style="letter-spacing: 5px; color: #2d89ef;">${code}</h1>
-                    <p>Este código expira en 15 minutos.</p>
-                    <small>Si no solicitaste esto, ignora este correo.</small>
-                </div>
-            `
-        };
+        // --- AQUÍ ESTABA EL ERROR ---
+        // Usamos el HTML que ya tenías, pero lo enviamos con Resend
+        const asunto = 'Código de Recuperación SIT';
+        const htmlBody = `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Recuperación de Contraseña</h2>
+                <p>Tu código de verificación es:</p>
+                <h1 style="letter-spacing: 5px; color: #2d89ef;">${code}</h1>
+                <p>Este código expira en 15 minutos.</p>
+                <small>Si no solicitaste esto, ignora este correo.</small>
+            </div>
+        `;
 
-        await transporter.sendMail(mailOptions);
-        res.json({ message: "Código enviado a tu correo." });
+        // Usamos la función importada de emailService (que usa Resend)
+        const enviado = await enviarCorreoSeguridad(email, asunto, htmlBody);
+
+        if (enviado) {
+            res.json({ message: "Código enviado a tu correo." });
+        } else {
+            res.status(500).json({ message: "Error enviando el correo." });
+        }
 
     } catch (error) {
         console.error("Error enviando correo:", error);
@@ -163,7 +154,6 @@ export const verifyResetCode = async (req, res) => {
 export const resetPassword = async (req, res) => {
     const { email, code, newPassword } = req.body;
     try {
-        // Verificar código nuevamente antes de cambiar
         const result = await pool.query(
             'SELECT * FROM usuarios WHERE email = $1 AND reset_code = $2 AND reset_expires > NOW()',
             [email, code]
@@ -173,7 +163,6 @@ export const resetPassword = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         
-        // Actualizar contraseña
         await pool.query(
             'UPDATE usuarios SET password = $1, reset_code = NULL, reset_expires = NULL WHERE email = $2',
             [hashedPassword, email]
