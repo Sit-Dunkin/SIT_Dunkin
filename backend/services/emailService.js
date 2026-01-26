@@ -1,29 +1,37 @@
+import dns from 'dns'; // <--- 1. IMPORTAMOS DNS AQUÍ
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+
+// ==========================================
+// 🛡️ PARCHE CRÍTICO DE RED (EN EL LUGAR CORRECTO)
+// ==========================================
+// Al ponerlo aquí, aseguramos que se ejecute ANTES de crear el transporte
+if (dns.setDefaultResultOrder) {
+    dns.setDefaultResultOrder('ipv4first');
+    console.log("🛡️ DNS BLINDADO EN EMAIL SERVICE: Forzando IPv4");
+}
 
 dotenv.config();
 
 // ==========================================
-// CONFIGURACIÓN FINAL: PUERTO 465 (SSL DIRECTO)
+// CONFIGURACIÓN FINAL: PUERTO 465 (SSL)
 // ==========================================
-console.log("📧 INICIANDO SERVICIO DE CORREO: PUERTO 465 (SSL BLINDADO)");
+console.log("📧 INICIANDO SERVICIO DE CORREO: PUERTO 465 (SSL DIRECTO)");
 
 const renderConfig = {
     host: "smtp.gmail.com",
-    port: 465,               // <--- CAMBIO CLAVE: Puerto SSL directo
-    secure: true,            // <--- OBLIGATORIO: true para puerto 465
-    family: 4,               // <--- CRÍTICO: Fuerza IPv4 (No borrar)
+    port: 465,               // Puerto SSL (El más seguro y directo)
+    secure: true,            // true para 465
     auth: {
         user: process.env.EMAIL_ACTAS_USER,
         pass: process.env.EMAIL_ACTAS_PASS
     },
-    // Opciones extra para evitar bloqueos de cifrado
+    // Opciones extra para evitar bloqueos
     tls: {
-        rejectUnauthorized: false,
-        ciphers: 'SSLv3'
+        rejectUnauthorized: false
     },
-    // Tiempos de espera para debug (ver logs)
-    connectionTimeout: 15000, 
+    // Tiempos de espera
+    connectionTimeout: 20000, 
     greetingTimeout: 10000
 };
 
@@ -38,13 +46,12 @@ const transporterSeguridad = nodemailer.createTransport({
     auth: { user: process.env.EMAIL_SEGURIDAD_USER, pass: process.env.EMAIL_SEGURIDAD_PASS }
 });
 
-// --- VERIFICACIÓN DE CONEXIÓN AL ARRANCAR ---
-// Esto nos dirá INMEDIATAMENTE si funciona, sin esperar a que envíes correo
+// --- VERIFICACIÓN DE CONEXIÓN ---
 transporterSeguridad.verify((error, success) => {
     if (error) {
-        console.error("❌ ERROR AL CONECTAR AL INICIO (465):", error);
+        console.error("❌ ERROR DE CONEXIÓN (465):", error);
     } else {
-        console.log("✅ CONEXIÓN EXITOSA CON GMAIL (PUERTO 465) - LISTO 🚀");
+        console.log("✅ CONEXIÓN EXITOSA CON GMAIL (465) - IPV4 ACTIVO 🚀");
     }
 });
 
@@ -54,7 +61,6 @@ transporterSeguridad.verify((error, success) => {
 
 export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
     try {
-        // --- Lógica de parámetros simplificada para prueba ---
         let nombreArchivoFinal = `Documento_SIT.pdf`;
         let textoFinal = "Adjunto documento SIT.";
         let htmlFinal = "<p>Adjunto documento SIT.</p>";
@@ -81,7 +87,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
 
 export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
     try {
-        console.log(`🔒 Intentando enviar seguridad a: ${destinatario}...`);
+        console.log(`🔒 Enviando seguridad a: ${destinatario}...`);
         const info = await transporterSeguridad.sendMail({
             from: `"Seguridad SIT" <${process.env.EMAIL_SEGURIDAD_USER}>`,
             to: destinatario,
