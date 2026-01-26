@@ -4,23 +4,19 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // ==========================================
-// CONFIGURACIÓN BLINDADA v3 (CON LOGS DE DEBUG)
+// CONFIGURACIÓN AUTOMÁTICA (CON PROTECCIÓN IPv4)
 // ==========================================
-console.log("📧 CARGANDO CONFIGURACIÓN DE CORREO: PUERTO 587 (GOOGLEMAIL)");
-
+// Al usar 'service: gmail', Nodemailer elige automáticamente el mejor puerto.
+// Como ya tienes el index.js forzando IPv4, esto debería funcionar fluido.
 const renderConfig = {
-    host: "smtp.googlemail.com", // TRUCO: A veces este dominio evita bloqueos
-    port: 587,               
-    secure: false,           
+    service: 'gmail',        
     auth: {
         user: process.env.EMAIL_ACTAS_USER,
         pass: process.env.EMAIL_ACTAS_PASS
     },
     tls: {
-        rejectUnauthorized: false
-    },
-    connectionTimeout: 10000, // 10 segundos
-    greetingTimeout: 5000
+        rejectUnauthorized: false // Evita bloqueos tontos de certificados
+    }
 };
 
 const transporterActas = nodemailer.createTransport({
@@ -33,17 +29,17 @@ const transporterSeguridad = nodemailer.createTransport({
     auth: { user: process.env.EMAIL_SEGURIDAD_USER, pass: process.env.EMAIL_SEGURIDAD_PASS }
 });
 
-// PRUEBA DE CONEXIÓN AL INICIAR
+// Verificación de conexión al iniciar
 transporterSeguridad.verify((error, success) => {
     if (error) {
-        console.error("❌ ERROR CRÍTICO CONECTANDO AL CORREO:", error);
+        console.error("❌ ERROR AL CONECTAR CON GMAIL (INTENTO AUTOMÁTICO):", error);
     } else {
-        console.log("✅ CONEXIÓN EXITOSA CON GMAIL (LISTO PARA ENVIAR)");
+        console.log("✅ CONEXIÓN EXITOSA: Gmail aceptó la conexión.");
     }
 });
 
 // ==========================================
-// FUNCIONES
+// FUNCIONES DE ENVÍO
 // ==========================================
 
 export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, param5, param6) => {
@@ -52,7 +48,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, param4, 
         let textoFinal = "Adjunto documento SIT.";
         let htmlFinal = "<p>Adjunto documento SIT.</p>";
 
-        // Logica simplificada de parámetros para asegurar envío
+        // Tu lógica de parámetros original simplificada
         if (param6 && typeof param6 === 'string' && param6.endsWith('.pdf')) {
             nombreArchivoFinal = param6;
             textoFinal = param4 || textoFinal;
@@ -93,7 +89,7 @@ export const enviarCorreoSeguridad = async (destinatario, asunto, htmlBody) => {
             subject: asunto,
             html: htmlBody
         });
-        console.log("✅ Enviado correctamente: " + info.messageId);
+        console.log("✅ Correo de seguridad enviado: " + info.messageId);
         return true;
     } catch (error) {
         console.error("❌ Error enviando seguridad:", error);
