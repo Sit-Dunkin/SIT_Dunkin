@@ -139,9 +139,9 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, nombreOr
             </p>
         </div>
 
-        <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee;">
+            <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee;">
             <p style="margin: 0;">Departamento de Tecnología e Información</p>
-            <p style="margin: 5px 0; font-weight: bold; color: #E11383;">DUNKIN' DONUTS ANTIOQUIA</p>
+            <p style="margin: 5px 0; font-weight: bold; color: #F5821F;">DUNKIN' DONUTS ANTIOQUIA</p>
         </div>
     </div>
     `;
