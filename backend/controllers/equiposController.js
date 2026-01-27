@@ -810,6 +810,9 @@ export const trasladarEquipos = async (req, res) => {
 // ==========================================
 // 1. RETORNO A SISTEMAS (CON CORRECCIÓN "S/N")
 // ==========================================
+// ==========================================
+// 1. RETORNO A SISTEMAS (MASTER VERSION: HORA COLOMBIA + S/N FIX + CORREO ROSA)
+// ==========================================
 export const retornarASistemas = async (req, res) => {
     const { equiposIds, estado, observaciones, quien_entrega, telefono, cargo, correo, origen } = req.body;
     const connection = await pool.connect();
@@ -818,6 +821,8 @@ export const retornarASistemas = async (req, res) => {
         await connection.query('BEGIN');
         const equipos = [];
         const userId = req.user ? req.user.id : 1;
+        
+        // Obtener nombre del responsable
         const { rows: users } = await connection.query("SELECT nombre_completo FROM usuarios WHERE id = $1", [userId]);
         const registrado_por = users.length > 0 ? users[0].nombre_completo : 'SISTEMAS';
 
@@ -826,31 +831,28 @@ export const retornarASistemas = async (req, res) => {
             if (s.length) {
                 const eq = s[0];
                 
-                // 🚨 CORRECCIÓN ANTI-DUPLICADOS 🚨
-                // Si el serial es genérico (S/N, S/P...), le agregamos un sufijo único.
-                // Esto evita el error: "duplicate key value violates unique constraint"
+                // --- 1. LÓGICA ANTI-DUPLICADOS (S/N) ---
+                // Si el serial es genérico, le inventamos un sufijo único para que la DB lo acepte.
                 let serialFinal = eq.serial;
-                const serialesGenericos = ['S/N', 'S/P', 'S/M', 'SIN SERIAL', 'NO TIENE', 'GENERICO', 'N/A', ''];
+                const serialesGenericos = ['S/N', 'S/P', 'S/M', 'SIN SERIAL', 'NO TIENE', 'GENERICO', 'N/A', '', null];
                 
-                if (!serialFinal || serialesGenericos.includes(serialFinal.toUpperCase().trim())) {
-                    // Genera ej: S/N-RET-84921
+                // Limpiamos el serial y verificamos si está en la lista de prohibidos
+                if (!serialFinal || serialesGenericos.includes(serialFinal.toString().trim().toUpperCase())) {
                     const randomSuffix = Math.floor(Math.random() * 100000); 
                     serialFinal = `${eq.serial || 'GEN'}-RET-${randomSuffix}`;
                 }
 
-                // Guardamos el serial final en el objeto para que el PDF también lo tenga si quieres (opcional)
-                // eq.serial = serialFinal; 
                 equipos.push(eq);
                 
-                // 1. Reingreso a Stock (Usando serialFinal)
+                // --- 2. INSERTAR EN STOCK (Con Hora Colombia -5h) ---
                 await connection.query(
                     `INSERT INTO stock_sistemas (tipo_equipo, marca, placa_inventario, serial, modelo, estado, observaciones, registrado_por, origen, fecha_ingreso) 
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`, 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (NOW() - INTERVAL '5 hours'))`, 
                     [
                         eq.tipo_equipo, 
                         eq.marca || 'GENERICO', 
                         eq.placa_inventario || 'S/P', 
-                        serialFinal, // <--- AQUÍ USAMOS EL SERIAL ÚNICO
+                        serialFinal,          // <--- Usamos el serial único
                         eq.modelo || 'S/M', 
                         estado, 
                         observaciones, 
@@ -859,18 +861,19 @@ export const retornarASistemas = async (req, res) => {
                     ]
                 );
                 
-                // 2. Registro en Movimientos
+                // --- 3. REGISTRO EN MOVIMIENTOS (Con Hora Colombia -5h) ---
                 const activoInfo = eq.placa_inventario ? `(Activo: ${eq.placa_inventario})` : '(Sin Activo)';
                 const origenTexto = origen || eq.destino || 'Ubicación Externa';
-                const detalleLog = `Retorno desde: ${origenTexto}. Estado final: ${estado}. Obs: ${observaciones} ${activoInfo}`;
+                // Guardamos el serial original en el texto para que sea legible por humanos
+                const detalleLog = `Retorno desde: ${origenTexto}. Serial Original: ${eq.serial || 'S/N'}. Estado: ${estado}. Obs: ${observaciones}`;
 
                 await connection.query(
                     `INSERT INTO movimientos (equipo_serial, usuario_id, ubicacion_origen, ubicacion_destino, tipo_movimiento, accion, detalle, fecha) 
-                     VALUES ($1, $2, $3, 'Sistemas', 'RETORNO', 'INGRESO_RETORNO', $4, NOW())`, 
+                     VALUES ($1, $2, $3, 'Sistemas', 'RETORNO', 'INGRESO_RETORNO', $4, (NOW() - INTERVAL '5 hours'))`, 
                     [serialFinal, userId, origenTexto, detalleLog]
                 );
                 
-                // 3. Eliminar de la tabla de Salidas
+                // Eliminar de Salidas
                 await connection.query("DELETE FROM equipos_salida WHERE id = $1", [id]);
             }
         }
@@ -881,21 +884,21 @@ export const retornarASistemas = async (req, res) => {
         }
 
         // =======================================================
-        // 2. CREAR REGISTRO EN HISTORIAL_ACTAS
+        // 4. HISTORIAL ACTAS (Con Hora Colombia -5h)
         // =======================================================
         const resumen = `Retorno de: ${equipos.length} equipos desde ${origen}`;
 
         // Insertar hueco para ganar el ID consecutivo.
         const { rows: resInsert } = await connection.query(
             `INSERT INTO historial_actas (tipo_acta, tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
-             VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
+             VALUES ($1, $2, $3, $4, $5, (NOW() - INTERVAL '5 hours'), $6, $7) RETURNING id`,
             ['RETORNO', 'RETORNO', userId, origen || 'Retorno', resumen, registrado_por, 'ALMACEN SISTEMAS']
         );
         
         const numeroOrden = resInsert[0].id;
 
         // =======================================================
-        // 3. GENERAR PDF
+        // 5. GENERAR PDF Y GUARDAR
         // =======================================================
         const datosActa = { 
             origen: origen || 'Punto Externo', 
@@ -908,6 +911,7 @@ export const retornarASistemas = async (req, res) => {
             numeroOrden: numeroOrden
         };
 
+        // Crear PDF en memoria
         const pdfBuffer = await crearPDF(generarActaRetorno, datosActa, equipos);
         const pdfBase64 = pdfBuffer.toString('base64');
 
@@ -925,14 +929,14 @@ export const retornarASistemas = async (req, res) => {
             console.error("Error al guardar PDF:", error);
         }
 
-        // 4. AUDITORÍA
+        // 6. AUDITORÍA
         const listaEquipos = equipos.map(e => `${e.tipo_equipo}`).join(', ');
         await registrarAuditoria(userId, 'GENERACION_ACTA', `Se generó Acta de Retorno #${numeroOrden} para: ${listaEquipos}. Origen: ${origen}`);
 
         await connection.query('COMMIT');
         
         // =======================================================
-        // 5. ENVIAR CORREO (CON DISEÑO ROSA)
+        // 7. ENVIAR CORREO (CON DISEÑO ROSA)
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
@@ -951,7 +955,7 @@ export const retornarASistemas = async (req, res) => {
             }
         }
 
-        // 6. RESPUESTA FINAL
+        // 8. RESPUESTA FINAL
         res.json({ 
             message: "Retorno OK", 
             emailSent: env, 
