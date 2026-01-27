@@ -816,6 +816,13 @@ export const trasladarEquipos = async (req, res) => {
 // ==========================================
 // 1. RETORNO A SISTEMAS (CORREGIDO: HORA ESTÁNDAR UTC + ARREGLO S/N)
 // ==========================================
+// ==========================================
+// 1. RETORNO A SISTEMAS (MASTER VERSION FINAL)
+// Arreglos:
+// 1. HORA: Usamos NOW() estándar (UTC). El navegador convertirá a hora Col. automáticamente.
+// 2. SERIALES: Detecta "S/N" o duplicados y asigna código único.
+// 3. CORREO: Diseño Rosa.
+// ==========================================
 export const retornarASistemas = async (req, res) => {
     const { equiposIds, estado, observaciones, quien_entrega, telefono, cargo, correo, origen } = req.body;
     const connection = await pool.connect();
@@ -832,19 +839,21 @@ export const retornarASistemas = async (req, res) => {
             if (s.length) {
                 const eq = s[0];
                 
-                // --- 1. ARREGLO ANTI-DUPLICADOS (S/N) ---
+                // --- 1. LÓGICA ANTI-DUPLICADOS (S/N) ---
+                // Si el serial es genérico, le inventamos un sufijo único para que la DB lo acepte.
                 let serialFinal = eq.serial;
                 const serialesGenericos = ['S/N', 'S/P', 'S/M', 'SIN SERIAL', 'NO TIENE', 'GENERICO', 'N/A', '', null];
                 
+                // Limpiamos el serial y verificamos si está en la lista de prohibidos
                 if (!serialFinal || serialesGenericos.includes(serialFinal.toString().trim().toUpperCase())) {
                     const randomSuffix = Math.floor(Math.random() * 100000); 
                     serialFinal = `${eq.serial || 'GEN'}-RET-${randomSuffix}`;
                 }
-                
+
                 equipos.push(eq);
                 
-                // --- 2. INSERTAR EN STOCK (Usamos NOW() estándar) ---
-                // Al usar NOW() puro, se guarda en UTC. El navegador luego lo convierte a hora Colombia automáticamente.
+                // --- 2. INSERTAR EN STOCK (Usamos NOW() PURO) ---
+                // NOTA: Guardamos en UTC. Tu React/Frontend convertirá a hora Colombia automáticamente.
                 await connection.query(
                     `INSERT INTO stock_sistemas (tipo_equipo, marca, placa_inventario, serial, modelo, estado, observaciones, registrado_por, origen, fecha_ingreso) 
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`, 
@@ -852,7 +861,7 @@ export const retornarASistemas = async (req, res) => {
                         eq.tipo_equipo, 
                         eq.marca || 'GENERICO', 
                         eq.placa_inventario || 'S/P', 
-                        serialFinal, 
+                        serialFinal,          // <--- Serial Único para evitar Error 500
                         eq.modelo || 'S/M', 
                         estado, 
                         observaciones, 
@@ -861,7 +870,7 @@ export const retornarASistemas = async (req, res) => {
                     ]
                 );
                 
-                // --- 3. LOG DE MOVIMIENTOS (Usamos NOW() estándar) ---
+                // --- 3. REGISTRO EN MOVIMIENTOS (Usamos NOW() PURO) ---
                 const activoInfo = eq.placa_inventario ? `(Activo: ${eq.placa_inventario})` : '(Sin Activo)';
                 const origenTexto = origen || eq.destino || 'Ubicación Externa';
                 const detalleLog = `Retorno desde: ${origenTexto}. Serial Orig: ${eq.serial || 'S/N'}. Estado: ${estado}. Obs: ${observaciones}`;
@@ -883,9 +892,10 @@ export const retornarASistemas = async (req, res) => {
         }
 
         // =======================================================
-        // 4. HISTORIAL ACTAS (Usamos NOW() estándar)
+        // 4. HISTORIAL ACTAS (Usamos NOW() PURO)
         // =======================================================
         const resumen = `Retorno de: ${equipos.length} equipos desde ${origen}`;
+
         const { rows: resInsert } = await connection.query(
             `INSERT INTO historial_actas (tipo_acta, tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
              VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
@@ -899,8 +909,13 @@ export const retornarASistemas = async (req, res) => {
         // =======================================================
         const datosActa = { 
             origen: origen || 'Punto Externo', 
-            quien_entrega, telefono, cargo, observaciones, 
-            estado_final: estado, responsable: registrado_por, numeroOrden 
+            quien_entrega, 
+            telefono, 
+            cargo, 
+            observaciones, 
+            estado_final: estado,
+            responsable: registrado_por, 
+            numeroOrden: numeroOrden
         };
 
         const pdfBuffer = await crearPDF(generarActaRetorno, datosActa, equipos);
@@ -915,7 +930,9 @@ export const retornarASistemas = async (req, res) => {
             } else {
                 await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
             }
-        } catch (error) { console.error("Error PDF:", error); }
+        } catch (error) {
+            console.error("Error al guardar PDF:", error);
+        }
 
         // 6. AUDITORÍA
         const listaEquipos = equipos.map(e => `${e.tipo_equipo}`).join(', ');
@@ -938,9 +955,12 @@ export const retornarASistemas = async (req, res) => {
                     numeroOrden,                       
                     'RETORNO'                          
                 );
-            } catch (e) { console.error("Error correo:", e); }
+            } catch (e) { 
+                console.error("Error envío correo retorno", e); 
+            }
         }
 
+        // 8. RESPUESTA FINAL
         res.json({ 
             message: "Retorno OK", 
             emailSent: env, 
