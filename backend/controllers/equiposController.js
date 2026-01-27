@@ -1656,8 +1656,8 @@ export const exportarTrazabilidadExcel = async (req, res) => {
             }
 
             return {
-                'Fecha': new Date(row.fecha).toLocaleDateString('es-CO'),
-                'Hora': new Date(row.fecha).toLocaleTimeString('es-CO'),
+                'Fecha': new Date(row.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }),
+                'Hora': new Date(row.fecha).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota' }),
                 'Activo (Placa)': row.activo_placa || '---',
                 'Serial': row.equipo_serial || 'Sin Serial',
                 'Origen': row.ubicacion_origen || '-',

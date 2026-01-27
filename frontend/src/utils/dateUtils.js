@@ -28,10 +28,9 @@ export const formatearFecha = (fecha) => {
         return { fecha: 'Error', hora: 'Error' };
     }
 
-    // 3. CONVERSIÓN MANUAL A COLOMBIA (UTC-5)
-    // Restar 5 horas (5 * 60 * 60 * 1000 milisegundos)
-    const COLOMBIA_OFFSET = 5 * 60 * 60 * 1000;
-    const dateColombia = new Date(dateUTC.getTime() - COLOMBIA_OFFSET);
+    // 3. CORRECCIÓN: Usamos la fecha tal cual.
+    // El navegador ya sabe que estás en Colombia y aplicará el UTC-5 automáticamente.
+    const dateColombia = dateUTC;
 
     // 4. FORMATEAR FECHA (dd/mm/aaaa)
     // Usamos métodos locales porque ya ajustamos el timestamp
