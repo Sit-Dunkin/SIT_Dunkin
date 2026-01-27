@@ -150,7 +150,7 @@ export const generarActaSalida = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`ORDEN DE SALIDA Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date(datos.fecha).toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date(datos.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -331,7 +331,7 @@ export const generarActaRetorno = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`ACTA DE RETORNO Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -512,7 +512,7 @@ export const generarActaReparacion = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`ORDEN DE SERVICIO TÉCNICO Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -703,7 +703,7 @@ export const generarActaBaja = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`ACTA DE BAJA TÉCNICA Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -889,7 +889,7 @@ export const generarActaResiduos = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`MANIFIESTO ENTREGA RESIDUOS RAEE Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -1060,7 +1060,7 @@ export const generarActaIngreso = (datos, equipo, callback) => {
     doc.fontSize(14).font(fontBold).text(`ACTA DE INGRESO DE ACTIVOS Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -1251,7 +1251,7 @@ export const generarActaIngresoMasivo = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`REPORTE DE IMPORTACIÓN MASIVA Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const fechaActual = new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
