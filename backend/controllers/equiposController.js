@@ -813,6 +813,9 @@ export const trasladarEquipos = async (req, res) => {
 // ==========================================
 // 1. RETORNO A SISTEMAS (MASTER VERSION: HORA COLOMBIA + S/N FIX + CORREO ROSA)
 // ==========================================
+// ==========================================
+// 1. RETORNO A SISTEMAS (CORREGIDO: HORA ESTÁNDAR UTC + ARREGLO S/N)
+// ==========================================
 export const retornarASistemas = async (req, res) => {
     const { equiposIds, estado, observaciones, quien_entrega, telefono, cargo, correo, origen } = req.body;
     const connection = await pool.connect();
@@ -821,8 +824,6 @@ export const retornarASistemas = async (req, res) => {
         await connection.query('BEGIN');
         const equipos = [];
         const userId = req.user ? req.user.id : 1;
-        
-        // Obtener nombre del responsable
         const { rows: users } = await connection.query("SELECT nombre_completo FROM usuarios WHERE id = $1", [userId]);
         const registrado_por = users.length > 0 ? users[0].nombre_completo : 'SISTEMAS';
 
@@ -831,28 +832,27 @@ export const retornarASistemas = async (req, res) => {
             if (s.length) {
                 const eq = s[0];
                 
-                // --- 1. LÓGICA ANTI-DUPLICADOS (S/N) ---
-                // Si el serial es genérico, le inventamos un sufijo único para que la DB lo acepte.
+                // --- 1. ARREGLO ANTI-DUPLICADOS (S/N) ---
                 let serialFinal = eq.serial;
                 const serialesGenericos = ['S/N', 'S/P', 'S/M', 'SIN SERIAL', 'NO TIENE', 'GENERICO', 'N/A', '', null];
                 
-                // Limpiamos el serial y verificamos si está en la lista de prohibidos
                 if (!serialFinal || serialesGenericos.includes(serialFinal.toString().trim().toUpperCase())) {
                     const randomSuffix = Math.floor(Math.random() * 100000); 
                     serialFinal = `${eq.serial || 'GEN'}-RET-${randomSuffix}`;
                 }
-
+                
                 equipos.push(eq);
                 
-                // --- 2. INSERTAR EN STOCK (Con Hora Colombia -5h) ---
+                // --- 2. INSERTAR EN STOCK (Usamos NOW() estándar) ---
+                // Al usar NOW() puro, se guarda en UTC. El navegador luego lo convierte a hora Colombia automáticamente.
                 await connection.query(
                     `INSERT INTO stock_sistemas (tipo_equipo, marca, placa_inventario, serial, modelo, estado, observaciones, registrado_por, origen, fecha_ingreso) 
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (NOW() - INTERVAL '5 hours'))`, 
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`, 
                     [
                         eq.tipo_equipo, 
                         eq.marca || 'GENERICO', 
                         eq.placa_inventario || 'S/P', 
-                        serialFinal,          // <--- Usamos el serial único
+                        serialFinal, 
                         eq.modelo || 'S/M', 
                         estado, 
                         observaciones, 
@@ -861,15 +861,14 @@ export const retornarASistemas = async (req, res) => {
                     ]
                 );
                 
-                // --- 3. REGISTRO EN MOVIMIENTOS (Con Hora Colombia -5h) ---
+                // --- 3. LOG DE MOVIMIENTOS (Usamos NOW() estándar) ---
                 const activoInfo = eq.placa_inventario ? `(Activo: ${eq.placa_inventario})` : '(Sin Activo)';
                 const origenTexto = origen || eq.destino || 'Ubicación Externa';
-                // Guardamos el serial original en el texto para que sea legible por humanos
-                const detalleLog = `Retorno desde: ${origenTexto}. Serial Original: ${eq.serial || 'S/N'}. Estado: ${estado}. Obs: ${observaciones}`;
+                const detalleLog = `Retorno desde: ${origenTexto}. Serial Orig: ${eq.serial || 'S/N'}. Estado: ${estado}. Obs: ${observaciones}`;
 
                 await connection.query(
                     `INSERT INTO movimientos (equipo_serial, usuario_id, ubicacion_origen, ubicacion_destino, tipo_movimiento, accion, detalle, fecha) 
-                     VALUES ($1, $2, $3, 'Sistemas', 'RETORNO', 'INGRESO_RETORNO', $4, (NOW() - INTERVAL '5 hours'))`, 
+                     VALUES ($1, $2, $3, 'Sistemas', 'RETORNO', 'INGRESO_RETORNO', $4, NOW())`, 
                     [serialFinal, userId, origenTexto, detalleLog]
                 );
                 
@@ -884,14 +883,12 @@ export const retornarASistemas = async (req, res) => {
         }
 
         // =======================================================
-        // 4. HISTORIAL ACTAS (Con Hora Colombia -5h)
+        // 4. HISTORIAL ACTAS (Usamos NOW() estándar)
         // =======================================================
         const resumen = `Retorno de: ${equipos.length} equipos desde ${origen}`;
-
-        // Insertar hueco para ganar el ID consecutivo.
         const { rows: resInsert } = await connection.query(
             `INSERT INTO historial_actas (tipo_acta, tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
-             VALUES ($1, $2, $3, $4, $5, (NOW() - INTERVAL '5 hours'), $6, $7) RETURNING id`,
+             VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
             ['RETORNO', 'RETORNO', userId, origen || 'Retorno', resumen, registrado_por, 'ALMACEN SISTEMAS']
         );
         
@@ -902,20 +899,13 @@ export const retornarASistemas = async (req, res) => {
         // =======================================================
         const datosActa = { 
             origen: origen || 'Punto Externo', 
-            quien_entrega, 
-            telefono, 
-            cargo, 
-            observaciones, 
-            estado_final: estado,
-            responsable: registrado_por, 
-            numeroOrden: numeroOrden
+            quien_entrega, telefono, cargo, observaciones, 
+            estado_final: estado, responsable: registrado_por, numeroOrden 
         };
 
-        // Crear PDF en memoria
         const pdfBuffer = await crearPDF(generarActaRetorno, datosActa, equipos);
         const pdfBase64 = pdfBuffer.toString('base64');
 
-        // Guardar PDF en Supabase
         try {
             const nombreArchivo = `Acta_Retorno_${numeroOrden}.pdf`;
             const pdfUrl = await subirPDFASupabase(pdfBuffer, nombreArchivo);
@@ -925,9 +915,7 @@ export const retornarASistemas = async (req, res) => {
             } else {
                 await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
             }
-        } catch (error) {
-            console.error("Error al guardar PDF:", error);
-        }
+        } catch (error) { console.error("Error PDF:", error); }
 
         // 6. AUDITORÍA
         const listaEquipos = equipos.map(e => `${e.tipo_equipo}`).join(', ');
@@ -936,26 +924,23 @@ export const retornarASistemas = async (req, res) => {
         await connection.query('COMMIT');
         
         // =======================================================
-        // 7. ENVIAR CORREO (CON DISEÑO ROSA)
+        // 7. ENVIAR CORREO (ROSA)
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
             try {
                 env = await enviarCorreoActa(
-                    correo,                            // Destinatario
-                    pdfBuffer,                         // PDF
-                    `Acta de Retorno #${numeroOrden}`, // Asunto
-                    origen,                            // Origen
-                    quien_entrega,                     // Responsable
-                    numeroOrden,                       // Número Acta
-                    'RETORNO'                          // TIPO (ROSA)
+                    correo,                            
+                    pdfBuffer,                         
+                    `Acta de Retorno #${numeroOrden}`, 
+                    origen,                            
+                    quien_entrega,                     
+                    numeroOrden,                       
+                    'RETORNO'                          
                 );
-            } catch (e) { 
-                console.error("Error envío correo retorno", e); 
-            }
+            } catch (e) { console.error("Error correo:", e); }
         }
 
-        // 8. RESPUESTA FINAL
         res.json({ 
             message: "Retorno OK", 
             emailSent: env, 
