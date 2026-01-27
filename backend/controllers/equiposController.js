@@ -683,7 +683,7 @@ export const trasladarEquipos = async (req, res) => {
         await connection.query('BEGIN');
         const equiposProcesados = [];
         
-        // 1. Obtener responsable
+        // 1. Obtener responsable (Usuario Logueado)
         const userId = req.user ? req.user.id : 1;
         const { rows: users } = await connection.query("SELECT nombre_completo FROM usuarios WHERE id = $1", [userId]);
         const nombreResponsable = users.length > 0 ? users[0].nombre_completo : 'SISTEMAS';
@@ -729,22 +729,22 @@ export const trasladarEquipos = async (req, res) => {
         const resumen = `Salida de ${equiposProcesados.length} equipos a ${destinoNombre}`;
         
         const { rows: resInsert } = await connection.query(
-            `INSERT INTO historial_actas (tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
-             VALUES ($1, $2, $3, $4, NOW(), $5, $6) RETURNING id`,
-            ['SALIDA', userId, destinoNombre, resumen, nombreResponsable, destinoNombre]
+            `INSERT INTO historial_actas (tipo_acta, tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
+             VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
+            ['SALIDA', 'SALIDA', userId, destinoNombre, resumen, nombreResponsable, destinoNombre]
         );
 
-        // PASO B: ¡Tenemos el ID consecutivo! (Ej: Si el anterior fue 1, este será 2)
+        // PASO B: ¡Tenemos el ID consecutivo!
         const numeroOrden = resInsert[0].id; 
 
         const datosActa = { 
             destinoNombre, 
-            recibe_nombre: recibe_nombre.toUpperCase(), 
+            recibe_nombre: recibe_nombre ? recibe_nombre.toUpperCase() : 'NO REGISTRADO', 
             recibe_cargo: recibe_cargo || '', 
             recibe_telefono: recibe_telefono || '', 
             motivo: motivo || 'Asignación',
             responsable: nombreResponsable,
-            numeroOrden: numeroOrden // 🔥 Usamos el ID real de la base de datos
+            numeroOrden: numeroOrden
         };
         
         // PASO C: Generar PDF
@@ -767,34 +767,24 @@ export const trasladarEquipos = async (req, res) => {
         await connection.query('COMMIT');
 
         // =======================================================
-        // 5. ENVIAR CORREO
+        // 5. ENVIAR CORREO (🔥 VERSIÓN LIMPIA Y AUTOMATIZADA 🔥)
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
-            const asunto = `ACTA DE ENTREGA DE EQUIPOS - ORDEN Nº ${numeroOrden}`;
-            const nombreArchivoPDF = `Acta_Salida_${numeroOrden}.pdf`;
-            
-            const mensajeTexto = `Se ha registrado un traslado de equipos para: ${destinoNombre}. Adjunto Acta Nº ${numeroOrden}.`;
-            
-            const mensajeHTML = `
-                <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; border: 1px solid #ddd; padding: 20px;">
-                    <h2 style="color: #ea580c;">Acta de Entrega Nº ${numeroOrden}</h2>
-                    <p>Hola,</p>
-                    <p>Se ha registrado un traslado de equipos con los siguientes datos:</p>
-                    <ul>
-                        <li><strong>Destino:</strong> ${destinoNombre}</li>
-                        <li><strong>Recibe:</strong> ${recibe_nombre}</li>
-                        <li><strong>Cantidad:</strong> ${equiposProcesados.length} equipos</li>
-                    </ul>
-                    <p>Adjunto encontrarás el documento PDF con las firmas correspondientes.</p>
-                    <hr>
-                    <p style="font-size: 12px; color: #777;">Departamento de Tecnología DUNKIN</p>
-                </div>
-            `;
-
             try {
-                env = await enviarCorreoActa(correo, pdfBuffer, asunto, mensajeTexto, mensajeHTML, nombreArchivoPDF); 
-            } catch (mailError) { console.error("Error mail salida:", mailError); }
+                // Enviamos los datos puros. El servicio de correo pone el diseño Naranja y el Título.
+                env = await enviarCorreoActa(
+                    correo,                         // Destinatario
+                    pdfBuffer,                      // PDF
+                    `Acta de Salida #${numeroOrden}`, // Asunto
+                    destinoNombre,                  // Ubicación Destino
+                    recibe_nombre,                  // Persona que Recibe
+                    numeroOrden,                    // Número de Acta
+                    'SALIDA'                        // <--- TIPO DE ACTA (Define color Naranja)
+                );
+            } catch (mailError) { 
+                console.error("Error envío correo salida:", mailError); 
+            }
         }
 
         // 6. RESPUESTA
@@ -813,7 +803,6 @@ export const trasladarEquipos = async (req, res) => {
         connection.release(); 
     }
 };
-
 // --- RETORNO (CON DISEÑO DUNKIN Y NÚMERO DE ORDEN) ---
 // --- RETORNO (CORREGIDO CON ID REAL) ---
 // --- RETORNO (CORREGIDO Y ACTUALIZADO) ---
@@ -906,9 +895,7 @@ export const retornarASistemas = async (req, res) => {
             await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
         }
 
-        // 4. AUDITORÍA (🔥 CORREGIDO: MOSTRAR ACTIVO EN LUGAR DE SERIAL)
-        // Antes decía: e.tipo_equipo (S/N: e.serial)
-        // Ahora dice:  e.tipo_equipo (Activo: e.placa_inventario)
+        // 4. AUDITORÍA
         const listaEquipos = equipos.map(e => {
             const identificador = e.placa_inventario && e.placa_inventario !== 'S/P' 
                 ? `Activo: ${e.placa_inventario}` 
@@ -918,36 +905,26 @@ export const retornarASistemas = async (req, res) => {
 
         await registrarAuditoria(userId, 'GENERACION_ACTA', `Se generó Acta de Retorno #${numeroOrden} para: ${listaEquipos}. Origen: ${origen}`);
 
-        // Confirmar transacción
         await connection.query('COMMIT');
         
         // =======================================================
-        // 5. ENVIAR CORREO
+        // 5. ENVIAR CORREO (🔥 VERSIÓN ACTUALIZADA Y LIMPIA 🔥)
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
-            const asunto = `ACTA DE RETORNO DE EQUIPOS - SIT (Acta Nº ${numeroOrden})`;
-            const mensajeTexto = `HOLA,\n\nSe ha registrado el retorno de equipos provenientes de: ${origen}.\nEntregado por: ${quien_entrega}\n\nAdjunto encontrarás el Acta de Retorno #${numeroOrden}.\n\nAtt, Departamento de Tecnología DUNKIN`;
-            const nombreArchivo = `Acta_Retorno_${numeroOrden}.pdf`;
-
-            const mensajeHTML = `
-                <div style="font-family: Arial, sans-serif; color: #000;">
-                    <p style="font-weight: bold; margin-bottom: 20px;">HOLA,</p>
-                    <p>Se ha registrado el <strong>Retorno de Equipos</strong> a las oficinas de Sistemas.</p>
-                    <div style="background-color: #fff7ed; padding: 15px; border-left: 4px solid #ea580c; margin: 20px 0;">
-                        <p style="margin: 5px 0;"><strong>Origen / Punto:</strong> ${origen}</p>
-                        <p style="margin: 5px 0;"><strong>Entregado por:</strong> ${quien_entrega}</p>
-                        <p style="margin: 5px 0;"><strong>Recibido por (TI):</strong> ${registrado_por}</p>
-                    </div>
-                    <p>Adjunto encontrarás el <strong>Acta de Retorno Nº ${numeroOrden}</strong>.</p>
-                    <br><br>
-                    <p>Att,<br><br><strong>Departamento de Tecnología DUNKIN</strong></p>
-                </div>
-            `;
-
             try {
-                env = await enviarCorreoActa(correo, pdfBuffer, asunto, mensajeTexto, mensajeHTML, nombreArchivo);
-            } catch (e) { console.error("Error envío correo retorno", e); }
+                env = await enviarCorreoActa(
+                    correo,                            // Destinatario
+                    pdfBuffer,                         // PDF
+                    `Acta de Retorno #${numeroOrden}`, // Asunto
+                    origen,                            // Nombre del Origen (para el cuerpo del correo)
+                    quien_entrega,                     // Nombre de quien entrega
+                    numeroOrden,                       // Número de Acta
+                    'RETORNO'                          // <--- TIPO DE ACTA (Define color Rosa y Título)
+                );
+            } catch (e) { 
+                console.error("Error envío correo retorno", e); 
+            }
         }
 
         // 6. RESPUESTA FINAL
@@ -1017,14 +994,13 @@ export const enviarAReparacion = async (req, res) => {
         const resumen = `Salida a Reparación: ${equipos.length} equipos para ${empresa}`;
 
         // PASO A: Insertar el registro "cascarón".
-        // 🔥 CORRECCIÓN AQUÍ: Agregamos 'tipo_acta' para que no quede como SALIDA
         const { rows: resInsert } = await connection.query(
             `INSERT INTO historial_actas (tipo_acta, tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
              VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
             ['MANTENIMIENTO', 'MANTENIMIENTO', userId, empresa, resumen, responsable, empresa]
         );
 
-        // PASO B: Obtenemos el ID real (1, 2, 3...)
+        // PASO B: Obtenemos el ID real
         const numeroOrden = resInsert[0].id;
 
         const datosActa = { 
@@ -1034,7 +1010,7 @@ export const enviarAReparacion = async (req, res) => {
             tecnico_telefono: tecnico_telefono || '', 
             observaciones: observaciones || '',
             responsable: responsable,
-            numeroOrden: numeroOrden // 🔥 USAMOS EL ID REAL
+            numeroOrden: numeroOrden // ID REAL
         };
 
         // PASO C: Crear PDF
@@ -1057,27 +1033,25 @@ export const enviarAReparacion = async (req, res) => {
 
         await connection.query('COMMIT');
 
-        // 6. ENVIAR CORREO
+        // =======================================================
+        // 6. ENVIAR CORREO (🔥 VERSIÓN AUTOMATIZADA 🔥)
+        // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
-            const asunto = `ORDEN DE SERVICIO TÉCNICO - SIT (Orden Nº ${numeroOrden})`;
-            const mensajeTexto = `Se envían equipos para revisión técnica a ${empresa}. Adjunto orden de servicio.`;
-            const nombreArchivo = `Orden_Reparacion_${numeroOrden}.pdf`;
-            
-            const mensajeHTML = `
-                <div style="font-family: Arial, sans-serif; color: #000;">
-                    <h3 style="color: #ea580c;">Solicitud de Servicio Técnico</h3>
-                    <p>Se hace entrega de equipos para revisión y diagnóstico.</p>
-                    <div style="background-color: #fff7ed; padding: 15px; margin: 20px 0;">
-                        <p><strong>Empresa:</strong> ${empresa}</p>
-                        <p><strong>Orden Nº:</strong> ${numeroOrden}</p>
-                    </div>
-                    <p>Adjunto encontrará el formato PDF correspondiente.</p>
-                </div>
-            `;
             try {
-                env = await enviarCorreoActa(correo, pdfBuffer, asunto, mensajeTexto, mensajeHTML, nombreArchivo);
-            } catch (e) { console.error("Error correo reparación:", e); }
+                // Enviamos los datos puros. El servicio aplica el color AZUL y el diseño.
+                env = await enviarCorreoActa(
+                    correo,                            // Destinatario
+                    pdfBuffer,                         // PDF
+                    `Orden de Servicio Técnico #${numeroOrden}`, // Asunto
+                    empresa,                           // Ubicación Destino (Taller)
+                    tecnico_nombre,                    // Persona Responsable (Técnico)
+                    numeroOrden,                       // Número Acta
+                    'REPARACION'                       // <--- TIPO (Define color Azul Técnico)
+                );
+            } catch (e) { 
+                console.error("Error correo reparación:", e); 
+            }
         }
 
         // 7. RESPUESTA AL FRONTEND
@@ -1085,7 +1059,7 @@ export const enviarAReparacion = async (req, res) => {
             message: "Equipos enviados a reparación.", 
             emailSent: env, 
             pdf: pdfBase64, 
-            numeroOrden: numeroOrden // Devolvemos el número real
+            numeroOrden: numeroOrden 
         });
 
     } catch (e) { 
@@ -1096,7 +1070,6 @@ export const enviarAReparacion = async (req, res) => {
         connection.release(); 
     }
 };
-
 
 // --- BAJA TÉCNICA (CON LOG DETALLADO Y CORREO DUNKIN) ---
 // --- BAJA TÉCNICA (CON DISEÑO DUNKIN Y NÚMERO DE ORDEN) ---
@@ -1125,7 +1098,6 @@ export const darDeBaja = async (req, res) => {
                 equipos.push(eq);
                 
                 // A. Actualizar estado en Stock (BAJA)
-                // 🔥 CORRECCIÓN: Ahora actualizamos también las observaciones y quién lo hizo
                 await connection.query(
                     `UPDATE stock_sistemas 
                      SET estado='BAJA',
@@ -1164,15 +1136,15 @@ export const darDeBaja = async (req, res) => {
             ['BAJA', 'BAJA', userId, destino_final, resumen, responsable, destino_final]
         );
 
-        // PASO B: Obtenemos el ID real (1, 2, 3...)
+        // PASO B: Obtenemos el ID real
         const numeroOrden = resInsert[0].id;
 
         const datosActa = { 
             autoriza, 
             destino_final, 
             observaciones,
-            responsable, // Para la firma "Concepto Técnico"
-            numeroOrden  // 🔥 USAMOS EL ID REAL
+            responsable, 
+            numeroOrden  // ID REAL
         };
 
         // PASO C: Crear PDF
@@ -1202,47 +1174,32 @@ export const darDeBaja = async (req, res) => {
         await connection.query('COMMIT');
 
         // =======================================================
-        // 6. ENVIAR CORREO
+        // 6. ENVIAR CORREO (🔥 VERSIÓN AUTOMATIZADA 🔥)
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
-            const asunto = `ACTA DE BAJA TÉCNICA - SIT (Acta Nº ${numeroOrden})`;
-            const mensajeTexto = `HOLA,\n\nSe ha generado el Acta de Baja Técnica para los activos adjuntos.\n\nAutoriza: ${autoriza}\nDestino Final: ${destino_final}\n\nAdjunto encontrarás el documento PDF.\n\nAtt, Tecnología DUNKIN`;
-            const nombreArchivo = `Acta_Baja_${numeroOrden}.pdf`;
-
-            const mensajeHTML = `
-                <div style="font-family: Arial, sans-serif; color: #000;">
-                    <p style="font-weight: bold; margin-bottom: 20px;">HOLA,</p>
-                    <p>Se ha generado el <strong>Acta de Baja Técnica</strong> para los activos tecnológicos adjuntos.</p>
-                    
-                    <div style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #dc2626; margin: 20px 0;">
-                        <p style="margin: 5px 0;"><strong>Autorizado por:</strong> ${autoriza}</p>
-                        <p style="margin: 5px 0;"><strong>Destino Final:</strong> ${destino_final}</p>
-                        <p style="margin: 5px 0;"><strong>Acta Nº:</strong> ${numeroOrden}</p>
-                    </div>
-
-                    <p>Adjunto encontrarás el documento en PDF debidamente diligenciado.</p>
-                    <br>
-                    <p>
-                        Att,<br>
-                        <strong>Departamento de Tecnología DUNKIN</strong>
-                    </p>
-                </div>
-            `;
-
             try {
-                env = await enviarCorreoActa(correo, pdfBuffer, asunto, mensajeTexto, mensajeHTML, nombreArchivo);
+                // Enviamos los datos puros. El servicio aplica el color ROJO y el diseño.
+                env = await enviarCorreoActa(
+                    correo,                         // Destinatario
+                    pdfBuffer,                      // PDF
+                    `Acta de Baja Técnica #${numeroOrden}`, // Asunto
+                    destino_final,                  // Destino Final (ej: Chatarrización)
+                    autoriza,                       // Persona que autoriza
+                    numeroOrden,                    // Número Acta
+                    'BAJA'                          // <--- TIPO (Define color Rojo Alerta)
+                );
             } catch (e) { 
                 console.error("Error envío correo baja", e); 
             }
         }
 
-        // 7. RESPUESTA (Con número de orden para el frontend)
+        // 7. RESPUESTA
         res.json({ 
             message: "Baja procesada correctamente.", 
             emailSent: env, 
             pdf: pdfBase64, 
-            numeroOrden: numeroOrden // Devolvemos el número real
+            numeroOrden: numeroOrden 
         });
 
     } catch (e) { 
@@ -1252,7 +1209,6 @@ export const darDeBaja = async (req, res) => {
         connection.release(); 
     }
 };
-
 // --- RESIDUOS / RAEE (CON LOG DETALLADO Y CORREO DUNKIN) ---
 // --- RESIDUOS / RAEE (CORREGIDO CON ID REAL) ---
 // --- RESIDUOS / RAEE (CORREGIDO CON ID REAL Y TIPO_ACTA) ---
@@ -1302,14 +1258,13 @@ export const entregarResiduos = async (req, res) => {
         const resumen = `Entrega RAEE a ${empresa_reciclaje} (${equipos.length} equipos)`;
 
         // PASO A: Insertar registro "hueco" para ganar el ID consecutivo.
-        // 🔥 CORRECCIÓN: Se agrega 'tipo_acta'='RESIDUOS' para evitar que salga como 'SALIDA'.
         const { rows: resInsert } = await connection.query(
             `INSERT INTO historial_actas (tipo_acta, tipo, usuario_id, referencia, detalles, fecha, responsable, destino)
              VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
             ['RESIDUOS', 'RESIDUOS', userId, empresa_reciclaje, resumen, responsable, empresa_reciclaje]
         );
 
-        // PASO B: Obtenemos el ID real (1, 2, 3...)
+        // PASO B: Obtenemos el ID real
         const numeroOrden = resInsert[0].id;
 
         const datosActa = { 
@@ -1317,8 +1272,8 @@ export const entregarResiduos = async (req, res) => {
             conductor, 
             placa_vehiculo, 
             observaciones,
-            responsable, // Para la firma "Entregado por"
-            numeroOrden  // 🔥 USAMOS EL ID REAL
+            responsable, 
+            numeroOrden 
         };
 
         // PASO C: Crear PDF
@@ -1341,36 +1296,22 @@ export const entregarResiduos = async (req, res) => {
 
         await connection.query('COMMIT');
 
-        // 6. ENVIAR CORREO
+        // =======================================================
+        // 6. ENVIAR CORREO (🔥 VERSIÓN AUTOMATIZADA 🔥)
+        // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
-            const asunto = `MANIFIESTO DE ENTREGA DE RESIDUOS (RAEE) - ACTA Nº ${numeroOrden}`;
-            const mensajeTexto = `HOLA,\n\nSe ha generado el Manifiesto de Entrega de Residuos (RAEE).\n\nEmpresa Gestora: ${empresa_reciclaje}\nConductor: ${conductor}\n\nAdjunto encontrarás el documento PDF certificado.\n\nAtt, Tecnología DUNKIN`;
-            const nombreArchivo = `Manifiesto_RAEE_${numeroOrden}.pdf`;
-
-            const mensajeHTML = `
-                <div style="font-family: Arial, sans-serif; color: #000;">
-                    <p style="font-weight: bold; margin-bottom: 20px;">HOLA,</p>
-                    <p>Se ha generado el <strong>Manifiesto de Entrega de Residuos (RAEE)</strong>.</p>
-                    
-                    <div style="background-color: #f0fdf4; padding: 15px; border-left: 4px solid #16a34a; margin: 20px 0;">
-                        <p style="margin: 5px 0;"><strong>Empresa Gestora:</strong> ${empresa_reciclaje}</p>
-                        <p style="margin: 5px 0;"><strong>Recibe (Conductor):</strong> ${conductor}</p>
-                        <p style="margin: 5px 0;"><strong>Placa Vehículo:</strong> ${placa_vehiculo || 'No registrada'}</p>
-                        <p style="margin: 5px 0;"><strong>Manifiesto Nº:</strong> ${numeroOrden}</p>
-                    </div>
-
-                    <p>Adjunto encontrarás el documento PDF certificado.</p>
-                    <br>
-                    <p>
-                        Att,<br>
-                        <strong>Departamento de Tecnología DUNKIN</strong>
-                    </p>
-                </div>
-            `;
-
             try {
-                env = await enviarCorreoActa(correo, pdfBuffer, asunto, mensajeTexto, mensajeHTML, nombreArchivo);
+                // Enviamos los datos puros. El servicio aplica el color VERDE y el diseño.
+                env = await enviarCorreoActa(
+                    correo,                            // Destinatario
+                    pdfBuffer,                         // PDF
+                    `Manifiesto de Residuos RAEE #${numeroOrden}`, // Asunto
+                    empresa_reciclaje,                 // Empresa destino (Gestor)
+                    conductor,                         // Persona que recibe
+                    numeroOrden,                       // Número Acta
+                    'RESIDUOS'                         // <--- TIPO (Define color Verde Ecología)
+                );
             } catch (e) { 
                 console.error("Error envío correo residuos", e); 
             }
@@ -1381,7 +1322,7 @@ export const entregarResiduos = async (req, res) => {
             message: "Residuos entregados correctamente.", 
             emailSent: env, 
             pdf: pdfBase64, 
-            numeroOrden: numeroOrden // Devolvemos el número real
+            numeroOrden: numeroOrden 
         });
 
     } catch (e) { 
