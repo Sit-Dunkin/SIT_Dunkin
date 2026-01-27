@@ -119,8 +119,8 @@ const Dashboard = () => {
             <span className="text-[11px] font-bold uppercase tracking-wider">Cantidad</span>
           </div>
 
-          {/* Lista */}
-          <div className="p-6 pt-2 flex-1 flex flex-col justify-between min-h-[200px]">
+          {/* Lista CORREGIDA: justify-start + gap-2 */}
+          <div className="p-6 pt-2 flex-1 flex flex-col justify-start gap-2 min-h-[200px]">
             {data?.tablas.equipos_por_tipo.slice(0, 5).map((item, index) => (
               <div
                 key={index}
