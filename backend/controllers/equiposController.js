@@ -807,6 +807,9 @@ export const trasladarEquipos = async (req, res) => {
 // --- RETORNO (CORREGIDO CON ID REAL) ---
 // --- RETORNO (CORREGIDO Y ACTUALIZADO) ---
 // --- RETORNAR A SISTEMAS (CORREGIDO: LOG CON ACTIVO) ---
+// ==========================================
+// 1. RETORNO A SISTEMAS (CON CORRECCIÓN "S/N")
+// ==========================================
 export const retornarASistemas = async (req, res) => {
     const { equiposIds, estado, observaciones, quien_entrega, telefono, cargo, correo, origen } = req.body;
     const connection = await pool.connect();
@@ -818,21 +821,45 @@ export const retornarASistemas = async (req, res) => {
         const { rows: users } = await connection.query("SELECT nombre_completo FROM usuarios WHERE id = $1", [userId]);
         const registrado_por = users.length > 0 ? users[0].nombre_completo : 'SISTEMAS';
 
-        // 1. PROCESAR EQUIPOS (Mover de Salidas a Stock)
         for (const id of equiposIds) {
             const { rows: s } = await connection.query("SELECT * FROM equipos_salida WHERE id = $1", [id]);
             if (s.length) {
                 const eq = s[0];
+                
+                // 🚨 CORRECCIÓN ANTI-DUPLICADOS 🚨
+                // Si el serial es genérico (S/N, S/P...), le agregamos un sufijo único.
+                // Esto evita el error: "duplicate key value violates unique constraint"
+                let serialFinal = eq.serial;
+                const serialesGenericos = ['S/N', 'S/P', 'S/M', 'SIN SERIAL', 'NO TIENE', 'GENERICO', 'N/A', ''];
+                
+                if (!serialFinal || serialesGenericos.includes(serialFinal.toUpperCase().trim())) {
+                    // Genera ej: S/N-RET-84921
+                    const randomSuffix = Math.floor(Math.random() * 100000); 
+                    serialFinal = `${eq.serial || 'GEN'}-RET-${randomSuffix}`;
+                }
+
+                // Guardamos el serial final en el objeto para que el PDF también lo tenga si quieres (opcional)
+                // eq.serial = serialFinal; 
                 equipos.push(eq);
                 
-                // Reingreso a Stock
+                // 1. Reingreso a Stock (Usando serialFinal)
                 await connection.query(
                     `INSERT INTO stock_sistemas (tipo_equipo, marca, placa_inventario, serial, modelo, estado, observaciones, registrado_por, origen, fecha_ingreso) 
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`, 
-                    [eq.tipo_equipo, eq.marca, eq.placa_inventario, eq.serial, eq.modelo, estado, observaciones, registrado_por, origen || eq.destino]
+                    [
+                        eq.tipo_equipo, 
+                        eq.marca || 'GENERICO', 
+                        eq.placa_inventario || 'S/P', 
+                        serialFinal, // <--- AQUÍ USAMOS EL SERIAL ÚNICO
+                        eq.modelo || 'S/M', 
+                        estado, 
+                        observaciones, 
+                        registrado_por, 
+                        origen || eq.destino
+                    ]
                 );
                 
-                // Registro en Movimientos
+                // 2. Registro en Movimientos
                 const activoInfo = eq.placa_inventario ? `(Activo: ${eq.placa_inventario})` : '(Sin Activo)';
                 const origenTexto = origen || eq.destino || 'Ubicación Externa';
                 const detalleLog = `Retorno desde: ${origenTexto}. Estado final: ${estado}. Obs: ${observaciones} ${activoInfo}`;
@@ -840,10 +867,10 @@ export const retornarASistemas = async (req, res) => {
                 await connection.query(
                     `INSERT INTO movimientos (equipo_serial, usuario_id, ubicacion_origen, ubicacion_destino, tipo_movimiento, accion, detalle, fecha) 
                      VALUES ($1, $2, $3, 'Sistemas', 'RETORNO', 'INGRESO_RETORNO', $4, NOW())`, 
-                    [eq.serial, userId, origenTexto, detalleLog]
+                    [serialFinal, userId, origenTexto, detalleLog]
                 );
                 
-                // Eliminar de la tabla de Salidas
+                // 3. Eliminar de la tabla de Salidas
                 await connection.query("DELETE FROM equipos_salida WHERE id = $1", [id]);
             }
         }
@@ -868,7 +895,7 @@ export const retornarASistemas = async (req, res) => {
         const numeroOrden = resInsert[0].id;
 
         // =======================================================
-        // 3. GENERAR PDF (CON ID REAL)
+        // 3. GENERAR PDF
         // =======================================================
         const datosActa = { 
             origen: origen || 'Punto Externo', 
@@ -881,34 +908,31 @@ export const retornarASistemas = async (req, res) => {
             numeroOrden: numeroOrden
         };
 
-        // Crear PDF en memoria
         const pdfBuffer = await crearPDF(generarActaRetorno, datosActa, equipos);
-
-        // Guardar PDF en Supabase
-        const nombreArchivo = `Acta_Retorno_${numeroOrden}.pdf`;
-        const pdfUrl = await subirPDFASupabase(pdfBuffer, nombreArchivo);
         const pdfBase64 = pdfBuffer.toString('base64');
 
-        if (pdfUrl) {
-            await connection.query(`UPDATE historial_actas SET url_pdf = $1, pdf_data = NULL WHERE id = $2`, [pdfUrl, numeroOrden]);
-        } else {
-            await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
+        // Guardar PDF en Supabase
+        try {
+            const nombreArchivo = `Acta_Retorno_${numeroOrden}.pdf`;
+            const pdfUrl = await subirPDFASupabase(pdfBuffer, nombreArchivo);
+            
+            if (pdfUrl) {
+                await connection.query(`UPDATE historial_actas SET url_pdf = $1, pdf_data = NULL WHERE id = $2`, [pdfUrl, numeroOrden]);
+            } else {
+                await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
+            }
+        } catch (error) {
+            console.error("Error al guardar PDF:", error);
         }
 
         // 4. AUDITORÍA
-        const listaEquipos = equipos.map(e => {
-            const identificador = e.placa_inventario && e.placa_inventario !== 'S/P' 
-                ? `Activo: ${e.placa_inventario}` 
-                : `S/N: ${e.serial}`;
-            return `${e.tipo_equipo} (${identificador})`;
-        }).join(', ');
-
+        const listaEquipos = equipos.map(e => `${e.tipo_equipo}`).join(', ');
         await registrarAuditoria(userId, 'GENERACION_ACTA', `Se generó Acta de Retorno #${numeroOrden} para: ${listaEquipos}. Origen: ${origen}`);
 
         await connection.query('COMMIT');
         
         // =======================================================
-        // 5. ENVIAR CORREO (🔥 VERSIÓN ACTUALIZADA Y LIMPIA 🔥)
+        // 5. ENVIAR CORREO (CON DISEÑO ROSA)
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
@@ -917,10 +941,10 @@ export const retornarASistemas = async (req, res) => {
                     correo,                            // Destinatario
                     pdfBuffer,                         // PDF
                     `Acta de Retorno #${numeroOrden}`, // Asunto
-                    origen,                            // Nombre del Origen (para el cuerpo del correo)
-                    quien_entrega,                     // Nombre de quien entrega
-                    numeroOrden,                       // Número de Acta
-                    'RETORNO'                          // <--- TIPO DE ACTA (Define color Rosa y Título)
+                    origen,                            // Origen
+                    quien_entrega,                     // Responsable
+                    numeroOrden,                       // Número Acta
+                    'RETORNO'                          // TIPO (ROSA)
                 );
             } catch (e) { 
                 console.error("Error envío correo retorno", e); 
