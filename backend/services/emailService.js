@@ -157,7 +157,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, nombreOr
         textoPlano, 
         pdfBuffer,
         EMAIL_ACTAS,          
-        'Sistemas Dunkin'
+        'SIT Dunkin'
     );
 };
 
