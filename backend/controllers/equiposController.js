@@ -672,6 +672,9 @@ export const deleteSalida = async (req, res) => {
 // ==========================================
 // 2. TRASLADO DE EQUIPOS (SALIDA) - MASTER VERSION
 // ==========================================
+// ==========================================
+// 2. TRASLADO DE EQUIPOS (SALIDA) - FIX ERROR 500
+// ==========================================
 export const trasladarEquipos = async (req, res) => {
     const { equiposIds, destinoNombre, recibe_nombre, recibe_telefono, recibe_cargo, correo, motivo } = req.body;
 
@@ -688,10 +691,11 @@ export const trasladarEquipos = async (req, res) => {
         
         // 1. Obtener responsable (Usuario Logueado)
         const userId = req.user ? req.user.id : 1;
-        // Consultamos también la cédula para el PDF
-        const { rows: users } = await connection.query("SELECT nombre_completo, documento_identidad FROM usuarios WHERE id = $1", [userId]);
+        
+        // 🚨 CORRECCIÓN: Quitamos 'documento_identidad' porque no existe en tu base de datos
+        const { rows: users } = await connection.query("SELECT nombre_completo FROM usuarios WHERE id = $1", [userId]);
         const nombreResponsable = users.length > 0 ? users[0].nombre_completo : 'SISTEMAS';
-        const cedulaResponsable = users.length > 0 ? users[0].documento_identidad : '';
+        const cedulaResponsable = ''; // Lo dejamos vacío para que no falle
 
         // 2. PROCESAR EQUIPOS
         for (const id of equiposIds) {
@@ -701,7 +705,7 @@ export const trasladarEquipos = async (req, res) => {
                 const eq = rows[0];
                 equiposProcesados.push(eq);
 
-                // A. Insertar en Salidas (Usamos NOW() estándar)
+                // A. Insertar en Salidas (Usamos NOW() estándar, el navegador ajusta la hora visual)
                 await connection.query(
                     `INSERT INTO equipos_salida (tipo_equipo, marca, placa_inventario, serial, modelo, destino, encargado, correo, motivo, fecha_salida) 
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`, 
@@ -749,9 +753,9 @@ export const trasladarEquipos = async (req, res) => {
             recibe_telefono: recibe_telefono || '', 
             motivo: motivo || 'Asignación',
             responsable: nombreResponsable,
-            cedula_responsable: cedulaResponsable, // Agregado para el PDF
+            cedula_responsable: cedulaResponsable, // Se pasa vacío
             numeroOrden: numeroOrden,
-            fecha: new Date() // Agregado: Fecha JS para que el PDF service la formatee con zona horaria
+            fecha: new Date() // Fecha JS para que el PDF service la formatee con zona horaria Colombia
         };
         
         // PASO C: Generar PDF
