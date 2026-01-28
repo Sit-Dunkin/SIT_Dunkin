@@ -150,7 +150,15 @@ export const generarActaSalida = (datos, equipos, callback) => {
     doc.fontSize(14).font(fontBold).text(`ORDEN DE SALIDA Nº ${numeroOrden}`, 0, doc.y, { align: 'center', width: pageWidth });
     doc.moveDown(1);
 
-    const fechaActual = new Date(datos.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: '2-digit', day: '2-digit' });
+    // FECHA: Usamos la fecha pasada o la actual, forzando zona horaria Colombia
+    const fechaBase = datos.fecha ? new Date(datos.fecha) : new Date();
+    const fechaActual = fechaBase.toLocaleDateString('es-CO', { 
+        timeZone: 'America/Bogota', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+    
     doc.fontSize(10).font(fontRegular).text(`Medellín, ${fechaActual}`, margin, doc.y, { align: 'right', width: pageWidth - (margin * 2) });
     doc.moveDown(2);
 
@@ -164,15 +172,15 @@ export const generarActaSalida = (datos, equipos, callback) => {
     doc.font(fontBold).text('De:', leftCol, currentY);
     doc.font(fontRegular).text('SISTEMAS DONUTS DE ANTIOQUIA S.A.S', leftCol + labelWidth, currentY);
     
-    // To:
+    // To: (CORREGIDO: Muestra el destino real)
     currentY += lineHeight;
     doc.font(fontBold).text('Para:', leftCol, currentY);
-    doc.font(fontRegular).text('OPERACIÓN', leftCol + labelWidth, currentY);
+    doc.font(fontRegular).text((datos.destinoNombre || 'NO REGISTRADO').toUpperCase(), leftCol + labelWidth, currentY);
 
-    // Phone:
+    // Phone: (CORREGIDO: Muestra el teléfono real)
     currentY += lineHeight;
     doc.font(fontBold).text('Teléfono:', leftCol, currentY);
-    doc.font(fontRegular).text('N/A', leftCol + labelWidth, currentY);
+    doc.font(fontRegular).text(datos.recibe_telefono || 'N/A', leftCol + labelWidth, currentY);
 
     // Responsible:
     currentY += lineHeight;
@@ -254,14 +262,21 @@ export const generarActaSalida = (datos, equipos, callback) => {
 
     doc.font(fontBold).text('Cédula:', margin, firmasY + 60);
     doc.moveTo(margin + 45, firmasY + 70).lineTo(margin + 230, firmasY + 70).stroke();
+    // Ponemos la cédula si existe
+    if (datos.cedula_responsable) {
+        doc.font(fontRegular).text(datos.cedula_responsable, margin + 50, firmasY + 58, { width: 180 });
+    }
 
-    // --- Right Column: RECIBIDO POR ---
+    // --- Right Column: RECIBIDO POR (CORREGIDO) ---
     const colRightX = 320;
     doc.font(fontBold).text('Recibido por', colRightX, firmasY);
     
     doc.font(fontBold).text('Nombre:', colRightX, firmasY + 30);
     doc.moveTo(colRightX + 45, firmasY + 40).lineTo(colRightX + 230, firmasY + 40).stroke(); 
     
+    // 🔥 AQUÍ SE IMPRIME EL NOMBRE DE QUIEN RECIBE 🔥
+    doc.font(fontRegular).text((datos.recibe_nombre || '').toUpperCase(), colRightX + 50, firmasY + 28, { width: 180 });
+
     doc.font(fontBold).text('Cédula:', colRightX, firmasY + 60);
     doc.moveTo(colRightX + 45, firmasY + 70).lineTo(colRightX + 230, firmasY + 70).stroke();
 

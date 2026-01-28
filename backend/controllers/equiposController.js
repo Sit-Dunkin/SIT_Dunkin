@@ -669,6 +669,9 @@ export const deleteSalida = async (req, res) => {
 
 
 // --- TRASLADO / SALIDA (CORREGIDO: CONSECUTIVO REAL) ---
+// ==========================================
+// 2. TRASLADO DE EQUIPOS (SALIDA) - MASTER VERSION
+// ==========================================
 export const trasladarEquipos = async (req, res) => {
     const { equiposIds, destinoNombre, recibe_nombre, recibe_telefono, recibe_cargo, correo, motivo } = req.body;
 
@@ -685,8 +688,10 @@ export const trasladarEquipos = async (req, res) => {
         
         // 1. Obtener responsable (Usuario Logueado)
         const userId = req.user ? req.user.id : 1;
-        const { rows: users } = await connection.query("SELECT nombre_completo FROM usuarios WHERE id = $1", [userId]);
+        // Consultamos también la cédula para el PDF
+        const { rows: users } = await connection.query("SELECT nombre_completo, documento_identidad FROM usuarios WHERE id = $1", [userId]);
         const nombreResponsable = users.length > 0 ? users[0].nombre_completo : 'SISTEMAS';
+        const cedulaResponsable = users.length > 0 ? users[0].documento_identidad : '';
 
         // 2. PROCESAR EQUIPOS
         for (const id of equiposIds) {
@@ -696,7 +701,7 @@ export const trasladarEquipos = async (req, res) => {
                 const eq = rows[0];
                 equiposProcesados.push(eq);
 
-                // A. Insertar en Salidas
+                // A. Insertar en Salidas (Usamos NOW() estándar)
                 await connection.query(
                     `INSERT INTO equipos_salida (tipo_equipo, marca, placa_inventario, serial, modelo, destino, encargado, correo, motivo, fecha_salida) 
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`, 
@@ -744,21 +749,27 @@ export const trasladarEquipos = async (req, res) => {
             recibe_telefono: recibe_telefono || '', 
             motivo: motivo || 'Asignación',
             responsable: nombreResponsable,
-            numeroOrden: numeroOrden
+            cedula_responsable: cedulaResponsable, // Agregado para el PDF
+            numeroOrden: numeroOrden,
+            fecha: new Date() // Agregado: Fecha JS para que el PDF service la formatee con zona horaria
         };
         
         // PASO C: Generar PDF
         const pdfBuffer = await crearPDF(generarActaSalida, datosActa, equiposProcesados);
+        const pdfBase64 = pdfBuffer.toString('base64');
+        const nombreArchivo = `Acta_Salida_${numeroOrden}.pdf`;
 
         // PASO D: Subir a Supabase
-        const nombreArchivo = `Acta_Salida_${numeroOrden}.pdf`;
-        const pdfUrl = await subirPDFASupabase(pdfBuffer, nombreArchivo);
-        const pdfBase64 = pdfBuffer.toString('base64');
-
-        if (pdfUrl) {
-            await connection.query(`UPDATE historial_actas SET url_pdf = $1, pdf_data = NULL WHERE id = $2`, [pdfUrl, numeroOrden]);
-        } else {
-            await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
+        try {
+            const pdfUrl = await subirPDFASupabase(pdfBuffer, nombreArchivo);
+            
+            if (pdfUrl) {
+                await connection.query(`UPDATE historial_actas SET url_pdf = $1, pdf_data = NULL WHERE id = $2`, [pdfUrl, numeroOrden]);
+            } else {
+                await connection.query(`UPDATE historial_actas SET pdf_data = $1 WHERE id = $2`, [pdfBase64, numeroOrden]);
+            }
+        } catch (error) {
+            console.error("Error guardando PDF:", error);
         }
 
         // 4. AUDITORÍA
@@ -767,7 +778,7 @@ export const trasladarEquipos = async (req, res) => {
         await connection.query('COMMIT');
 
         // =======================================================
-        // 5. ENVIAR CORREO (🔥 VERSIÓN LIMPIA Y AUTOMATIZADA 🔥)
+        // 5. ENVIAR CORREO
         // =======================================================
         let env = false;
         if (correo && correo.includes('@')) {
