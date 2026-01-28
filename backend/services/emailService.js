@@ -17,17 +17,17 @@ const EMAIL_ACTAS = 'sistemas.medellindunkin@gmail.com';
 const CONFIG_ACTAS = {
     'SALIDA': { 
         titulo: 'Acta de Salida de Equipos', 
-        color: '#F5821F', // Naranja Dunkin
+        color: '#2563EB', // Azul Salida
         texto: 'Se ha registrado una salida de equipos desde el almacén de Sistemas.' 
     },
     'RETORNO': { 
         titulo: 'Confirmación de Retorno', 
-        color: '#E11383', // Rosa Dunkin
+        color: '#9333EA', // Moradito 
         texto: 'Se ha registrado el retorno de equipos al área de Sistemas.' 
     },
     'REPARACION': { 
         titulo: 'Envío a Mantenimiento', 
-        color: '#2563EB', // Azul Técnico
+        color: '#F59E0B', // Amarillo Tecnico
         texto: 'Se han enviado equipos a revisión técnica o garantía externa.' 
     },
     'BAJA': { 
