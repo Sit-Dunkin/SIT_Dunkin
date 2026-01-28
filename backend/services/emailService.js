@@ -141,7 +141,7 @@ export const enviarCorreoActa = async (destinatario, pdfBuffer, asunto, nombreOr
 
             <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee;">
             <p style="margin: 0;">Departamento de Tecnología e Información</p>
-            <p style="margin: 5px 0; font-weight: bold; color: #F5821F;">DONUTS DE ANTIOQUIA S.A.S</p>
+            <p style="margin: 5px 0; font-weight: bold; color: #F5821F;">SISTEMAS DONUTS DE ANTIOQUIA S.A.S</p>
         </div>
     </div>
     `;
