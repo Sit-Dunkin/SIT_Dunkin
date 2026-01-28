@@ -162,7 +162,7 @@ export const generarActaSalida = (datos, equipos, callback) => {
 
     // From:
     doc.font(fontBold).text('De:', leftCol, currentY);
-    doc.font(fontRegular).text('SISTEMAS DONUTS DE ANTIOQUIA S.A', leftCol + labelWidth, currentY);
+    doc.font(fontRegular).text('SISTEMAS DONUTS DE ANTIOQUIA S.A.S', leftCol + labelWidth, currentY);
     
     // To:
     currentY += lineHeight;
@@ -912,7 +912,7 @@ export const generarActaResiduos = (datos, equipos, callback) => {
 
     currentY += lineHeight;
     doc.font(fontBold).text('Entregado por:', leftCol, currentY);
-    doc.font(fontRegular).text('DONUTS ANTIOQUIA S.A', leftCol + labelWidth, currentY);
+    doc.font(fontRegular).text('SISTEMAS DONUTS DE ANTIOQUIA S.A.S', leftCol + labelWidth, currentY);
 
     doc.moveDown(2);
     doc.text('Se hace entrega de los siguientes Residuos de Aparatos Eléctricos y Electrónicos (RAEE) para su correcta disposición final:', margin, doc.y);
