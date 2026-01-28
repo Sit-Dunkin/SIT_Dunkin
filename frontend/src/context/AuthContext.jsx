@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const AuthContext = createContext();
@@ -17,7 +17,11 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // --- EFECTO: VERIFICAR TOKEN AL INICIAR ---
+    // ⏱️ CONFIGURACIÓN DEL TIEMPO DE INACTIVIDAD (AFK)
+    // 15 Minutos = 900,000 milisegundos (15 * 60 * 1000)
+    const TIEMPO_INACTIVIDAD = 15 * 60 * 1000; 
+
+    // --- EFECTO 1: VERIFICAR TOKEN AL INICIAR ---
     useEffect(() => {
         const verifyToken = () => {
             setLoading(true);
@@ -43,8 +47,7 @@ export const AuthProvider = ({ children }) => {
 
                 } catch (error) {
                     console.error("Token inválido o expirado. Limpiando sesión.", error);
-                    // No llamamos a handleLogout aquí para evitar bucles infinitos si el backend falla,
-                    // solo limpiamos localmente.
+                    // Limpieza local silenciosa
                     localStorage.removeItem('token');
                     localStorage.removeItem('user');
                     setToken(null);
@@ -60,7 +63,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         verifyToken();
-    }, [token]);
+    }, [token]); // Dependencia: solo se ejecuta si cambia el token (o al inicio)
 
     // --- LOGIN ---
     const handleLogin = async (email, password) => {
@@ -81,7 +84,7 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('token', data.token);
             setToken(data.token);
             
-            // 2. Guardamos Datos de Usuario (Importante para la foto y nombre)
+            // 2. Guardamos Datos de Usuario
             const userData = data.user || JSON.parse(atob(data.token.split('.')[1]));
             
             localStorage.setItem('user', JSON.stringify(userData));
@@ -95,10 +98,10 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // --- LOGOUT (CORREGIDO PARA REGISTRAR EN BD) ---
-    const handleLogout = async () => {
+    // --- LOGOUT (CON CALLBACK PARA USAR EN EFECTOS) ---
+    const handleLogout = useCallback(async () => {
         try {
-            // Intentamos notificar al backend para que guarde el registro en auditoría
+            // Intentamos notificar al backend
             if (token) {
                 await fetch('https://sit-dunkin-backend.onrender.com/api/auth/logout', {
                     method: 'POST',
@@ -108,9 +111,9 @@ export const AuthProvider = ({ children }) => {
                 });
             }
         } catch (error) {
-            console.warn("No se pudo notificar el logout al servidor (posible error de red), pero se cerrará sesión localmente.");
+            console.warn("No se pudo notificar el logout al servidor, cerrando localmente.");
         } finally {
-            // Siempre limpiamos la sesión local, haya o no respuesta del servidor
+            // Siempre limpiamos la sesión local
             localStorage.removeItem('token');
             localStorage.removeItem('user'); 
             setToken(null);
@@ -118,19 +121,50 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(false);
             navigate('/login');
         }
-    };
+    }, [token, navigate]); // Dependencias del useCallback
 
-    // --- ACTUALIZAR PERFIL EN VIVO ---
+    // --- EFECTO 2: DETECTOR DE INACTIVIDAD (AFK) ---
+    useEffect(() => {
+        // Solo activamos el timer si el usuario está logueado
+        if (!user || !isAuthenticated) return;
+
+        let timeoutId;
+
+        // Función para reiniciar el reloj
+        const resetTimer = () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                console.log("⏰ Tiempo de inactividad cumplido. Cerrando sesión por seguridad...");
+                handleLogout(); // Llamamos al logout automáticamente
+            }, TIEMPO_INACTIVIDAD);
+        };
+
+        // Eventos que reinician el contador
+        const eventosActividad = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+        // Escuchar eventos
+        eventosActividad.forEach(evento => {
+            window.addEventListener(evento, resetTimer);
+        });
+
+        // Iniciar timer
+        resetTimer();
+
+        // Limpieza al desmontar
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+            eventosActividad.forEach(evento => {
+                window.removeEventListener(evento, resetTimer);
+            });
+        };
+    }, [user, isAuthenticated, handleLogout, TIEMPO_INACTIVIDAD]);
+
+    // --- ACTUALIZAR PERFIL ---
     const updateUserProfile = (newFotoUrl) => {
         setUser((prevUser) => {
             if (!prevUser) return null;
-
-            // Creamos el nuevo objeto usuario con la foto actualizada
             const updatedUser = { ...prevUser, foto: newFotoUrl };
-            
-            // Lo guardamos en localStorage para que no se pierda al recargar (F5)
             localStorage.setItem('user', JSON.stringify(updatedUser));
-            
             return updatedUser;
         });
     };
