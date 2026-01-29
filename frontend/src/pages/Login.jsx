@@ -81,7 +81,7 @@ const Login = () => {
                     </h1>
                     <p className="text-sm text-slate-500 font-medium mt-2 text-center">
                         Sistema de Inventario Tecnológico<br/>
-                        <span className="text-xs text-slate-400">Dunkin' Donuts Antioquia</span>
+                        <span className="text-xs text-slate-400">Donuts de Antioquia</span>
                     </p>
                 </div>
 
@@ -167,7 +167,7 @@ const Login = () => {
                 
                 <div className="text-center pt-4 border-t border-slate-100">
                     <p className="text-xs font-semibold text-slate-400 tracking-wide">
-                        &copy; 2026 Dunkin' Donuts Antioquia - TI Department
+                        &copy; 2026 Donuts de Antioquia - TI Department
                     </p>
                 </div>
             </div>
