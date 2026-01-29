@@ -8,16 +8,12 @@ const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false); 
-    
-    // Estado para Mayúsculas
     const [capsLockOn, setCapsLockOn] = useState(false);
-
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const { handleLogin } = useAuth();
     const navigate = useNavigate();
 
-    // Función para detectar Bloq Mayús
     const checkCapsLock = (e) => {
         if (e.getModifierState('CapsLock')) {
             setCapsLockOn(true);
@@ -40,15 +36,39 @@ const Login = () => {
         }
     };
 
-    // --- DISEÑO "ELEGANCIA CORPORATIVA" (Fondo Azul Oscuro + Tarjeta Blanca) ---
     return (
-        <div className="flex items-center justify-center min-h-screen bg-[#0F172A] p-4">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
+        /* --- CONTENEDOR PRINCIPAL CON ANIMACIÓN ---
+           Usamos un fondo con tamaño 400% y una animación CSS que mueve la posición.
+           Colores: Slate-900 (Base), Violet-900 (Toque moderno), Orange-900 (Toque Dunkin muy oscuro)
+        */
+        <div className="flex items-center justify-center min-h-screen p-4 overflow-hidden relative">
+            
+            {/* 1. Estilos de la Animación (CSS Puro para rendimiento óptimo) */}
+            <style>{`
+                @keyframes gradient-move {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .animated-bg {
+                    background: linear-gradient(-45deg, #0f172a, #1e1b4b, #312e81, #431407);
+                    background-size: 400% 400%;
+                    animation: gradient-move 15s ease infinite;
+                    position: absolute;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    z-index: -1;
+                }
+            `}</style>
+            
+            {/* 2. Capa de Fondo Animada */}
+            <div className="animated-bg"></div>
+
+            {/* 3. Tarjeta de Login */}
+            <div className="w-full max-w-md p-8 space-y-6 bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-500 border border-white/20">
                 
                 {/* --- LOGO Y TÍTULO --- */}
                 <div className="flex flex-col items-center justify-center mb-6">
-                    {/* Contenedor del Logo (Opcional: Si el logo ya es oscuro, quitar bg-slate-900) */}
-                    <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-sm overflow-hidden p-2 mb-4">
+                    <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-2 mb-4 transform hover:scale-105 transition-transform duration-300">
                         <img
                             src={logo} 
                             alt="SIT Logo"
@@ -94,7 +114,6 @@ const Login = () => {
                                 type={showPassword ? "text" : "password"} 
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                // Eventos para detectar Mayúsculas
                                 onKeyDown={checkCapsLock}
                                 onKeyUp={checkCapsLock}
                                 onClick={checkCapsLock}
@@ -112,7 +131,6 @@ const Login = () => {
                             </button>
                         </div>
 
-                        {/* ALERTA DE BLOQ MAYÚS */}
                         {capsLockOn && (
                             <div className="mt-2 text-xs font-bold text-orange-600 flex items-center gap-1 animate-pulse">
                                 <ArrowUpCircle size={14} />
@@ -136,7 +154,7 @@ const Login = () => {
                         className={`w-full p-3.5 text-white rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-900/10 ${
                             loading 
                                 ? 'bg-slate-400 cursor-not-allowed' 
-                                : 'bg-orange-600 hover:bg-orange-700 hover:shadow-orange-900/20 active:scale-[0.98]'
+                                : 'bg-orange-600 hover:bg-orange-700 hover:shadow-orange-900/20 active:scale-[0.98] transform hover:-translate-y-0.5'
                         }`}
                     >
                         {loading ? (
