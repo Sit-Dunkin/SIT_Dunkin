@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, AlertTriangle, Eye, EyeOff, ArrowUpCircle } from 'lucide-react'; // Agregamos ArrowUpCircle para el ícono de Mayús
+import { LogIn, AlertTriangle, Eye, EyeOff, ArrowUpCircle } from 'lucide-react'; 
 import logo from '../assets/logo_sit.jpg'; 
 
 const Login = () => {
@@ -40,27 +40,34 @@ const Login = () => {
         }
     };
 
+    // --- DISEÑO "ELEGANCIA CORPORATIVA" (Fondo Azul Oscuro + Tarjeta Blanca) ---
     return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-100 p-4">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl border border-slate-200">
+        <div className="flex items-center justify-center min-h-screen bg-[#0F172A] p-4">
+            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-2xl animate-in fade-in zoom-in duration-300">
                 
                 {/* --- LOGO Y TÍTULO --- */}
                 <div className="flex flex-col items-center justify-center mb-6">
-                    <div className="w-20 h-20 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-900/20 border-2 border-slate-800 overflow-hidden p-1 mb-4">
-                    <img
-                    src={logo} // Aquí usas la variable que importaste arriba
-                    alt="SIT Logo"
-                    className="w-full h-full object-cover rounded-xl"
-                    />                    </div>
-                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+                    {/* Contenedor del Logo (Opcional: Si el logo ya es oscuro, quitar bg-slate-900) */}
+                    <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-sm overflow-hidden p-2 mb-4">
+                        <img
+                            src={logo} 
+                            alt="SIT Logo"
+                            className="w-full h-full object-contain rounded-xl"
+                        />
+                    </div>
+                    
+                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight text-center">
                         Bienvenido al <span className="text-orange-600">SIT</span>
                     </h1>
-                    <p className="text-sm text-slate-500 font-medium mt-1">Inicia sesión con tu cuenta Dunkin'</p>
+                    <p className="text-sm text-slate-500 font-medium mt-2 text-center">
+                        Sistema de Inventario Tecnológico<br/>
+                        <span className="text-xs text-slate-400">Dunkin' Donuts Antioquia</span>
+                    </p>
                 </div>
 
-                {/* --- MENSAJE DE ERROR DE LOGIN --- */}
+                {/* --- MENSAJE DE ERROR --- */}
                 {error && (
-                    <div className="p-3 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3 animate-pulse">
+                    <div className="p-3 text-sm font-medium text-red-700 bg-red-50 border-l-4 border-red-500 rounded-r-lg flex items-center gap-3 animate-pulse">
                         <AlertTriangle size={18} />
                         {error}
                     </div>
@@ -87,7 +94,7 @@ const Login = () => {
                                 type={showPassword ? "text" : "password"} 
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                // AGREGAMOS LOS EVENTOS AQUÍ
+                                // Eventos para detectar Mayúsculas
                                 onKeyDown={checkCapsLock}
                                 onKeyUp={checkCapsLock}
                                 onClick={checkCapsLock}
@@ -105,7 +112,7 @@ const Login = () => {
                             </button>
                         </div>
 
-                        {/* MENSAJE DE BLOQ MAYÚS ACTIVADO */}
+                        {/* ALERTA DE BLOQ MAYÚS */}
                         {capsLockOn && (
                             <div className="mt-2 text-xs font-bold text-orange-600 flex items-center gap-1 animate-pulse">
                                 <ArrowUpCircle size={14} />
@@ -135,13 +142,15 @@ const Login = () => {
                         {loading ? (
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
                         ) : (
-                            <><LogIn size={20} /> Entrar al Sistema</>
+                            <><LogIn size={20} /> Iniciar Sesión</>
                         )}
                     </button>
                 </form>
                 
-                <div className="text-center text-xs font-semibold text-slate-400 mt-6 tracking-wide">
-                    SIT - Sistema de Inventario Tecnológico v1.0
+                <div className="text-center pt-4 border-t border-slate-100">
+                    <p className="text-xs font-semibold text-slate-400 tracking-wide">
+                        &copy; 2026 Dunkin' Donuts Antioquia - TI Department
+                    </p>
                 </div>
             </div>
         </div>
