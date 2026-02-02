@@ -11,7 +11,7 @@ const BACKEND_URL = 'https://sit-dunkin-backend.onrender.com';
 const Sidebar = () => {
   const location = useLocation();
   
-  // 👇 Traemos datos del usuario y la función de salir
+  // Traemos datos del usuario y la función de salir
   const { handleLogout, user } = useAuth(); 
 
   // 1. OBTENER ROL (Si no hay, asumimos el permiso más bajo: AUXILIAR)
@@ -77,15 +77,12 @@ const Sidebar = () => {
 
   // --- LÓGICA INTELIGENTE DE FOTO ---
   const getFotoPerfil = () => {
-    // 1. Si no hay usuario o no hay foto, devuelve avatar genérico
     if (!user || !user.foto) {
         return `https://ui-avatars.com/api/?name=${user?.nombre || 'User'}&background=ea580c&color=fff`;
     }
-    // 2. Si la foto ya es una URL completa (Cloudinary), devuélvela tal cual
     if (user.foto.startsWith('http')) {
         return user.foto;
     }
-    // 3. Si es una ruta local antigua, agrégale el backend
     const cleanPath = user.foto.replace(/\\/g, '/');
     return `${BACKEND_URL}/${cleanPath}?v=${new Date().getTime()}`;
   };
@@ -105,7 +102,6 @@ const Sidebar = () => {
     }).then((result) => {
       if (result.isConfirmed) {
         handleLogout(); 
-        
         const Toast = Swal.mixin({ 
             toast: true, 
             position: 'top-end', 
@@ -130,35 +126,38 @@ const Sidebar = () => {
             <h1 className="text-4xl font-extrabold tracking-widest text-orange-500 drop-shadow-lg group-hover:text-orange-400 transition-colors">SIT</h1>
         </Link>
 
-        {/* TARJETA DE USUARIO */}
+        {/* ==========================================================
+            TARJETA DE USUARIO (AHORA ES UN LINK AL PERFIL) 
+            ========================================================== */}
         <div className="px-4">
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-3 flex items-center gap-3 shadow-inner">
-                
+            <Link 
+                to="/perfil" 
+                className="bg-slate-900/50 border border-slate-800 rounded-2xl p-3 flex items-center gap-3 shadow-inner hover:bg-slate-800 hover:border-slate-700 transition-all cursor-pointer group/user active:scale-95"
+                title="Ver mi perfil"
+            >
                 {/* FOTO DE PERFIL */}
-                <div className="h-10 w-10 min-w-[40px] rounded-full overflow-hidden bg-slate-800 shadow-sm">
+                <div className="h-10 w-10 min-w-[40px] rounded-full overflow-hidden bg-slate-800 shadow-sm border border-transparent group-hover/user:border-orange-500 transition-colors">
                     <img 
                         src={getFotoPerfil()} 
                         alt="Perfil" 
                         className="h-full w-full rounded-full object-cover"
-                        // Si falla la carga, pone el avatar por defecto
                         onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${user?.nombre || 'User'}&background=333&color=fff`; }}
                     />
                 </div>
 
                 <div className="flex flex-col items-start justify-center overflow-hidden">
                     <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Bienvenido</span>
-                    <span className="font-bold text-white text-sm truncate w-full" title={user?.nombre}>
+                    <span className="font-bold text-white text-sm truncate w-full group-hover/user:text-orange-400 transition-colors" title={user?.nombre}>
                         {user?.nombre || 'Usuario'} 
                     </span>
                 </div>
-            </div>
+            </Link>
         </div>
       </div>
 
       {/* --- NAVEGACIÓN FILTRADA --- */}
       <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto custom-scrollbar">
         {menuItems
-          // Filtro por Rol
           .filter(item => item.allowed.includes(userRole)) 
           .map((item) => {
             const isActive = location.pathname === item.path;
