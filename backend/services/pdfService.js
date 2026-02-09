@@ -363,7 +363,7 @@ export const generarActaRetorno = (datos, equipos, callback) => {
     
     currentY += lineHeight;
     doc.font(fontBold).text('Para:', leftCol, currentY);
-    doc.font(fontRegular).text('DEPARTAMENTO DE TECNOLOGÍA (SISTEMAS)', leftCol + labelWidth, currentY);
+    doc.font(fontRegular).text('SISTEMAS DONUTS DE ANTIOQUIA S.A.S', leftCol + labelWidth, currentY);
 
     currentY += lineHeight;
     doc.font(fontBold).text('Recibido por:', leftCol, currentY);
