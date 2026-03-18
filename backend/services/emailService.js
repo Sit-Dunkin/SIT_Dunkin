@@ -9,7 +9,7 @@ const API_KEY = process.env.BREVO_API_KEY;
 
 // TUS CORREOS VERIFICADOS
 const EMAIL_SEGURIDAD = 'seguridad.dunkinmed@gmail.com';
-const EMAIL_ACTAS = 'sistemas.medellindunkin@gmail.com';
+const EMAIL_ACTAS = 'seguridaddunkin@gmail.com';
 
 // ==========================================
 // 🎨 DICCIONARIO DE DISEÑOS (COLORES Y TÍTULOS)
